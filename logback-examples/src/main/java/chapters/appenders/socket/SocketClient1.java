@@ -51,7 +51,9 @@ public class SocketClient1 {
     SocketAppender socketAppender = new SocketAppender();
     socketAppender.setRemoteHost(hostName);
     socketAppender.setPort(port);
-    socketAppender.setReconnectionDelay(10000);
+    
+    // FIXME
+    //socketAppender.setReconnectionDelay(10000);
     LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
     socketAppender.setContext(lc);
 

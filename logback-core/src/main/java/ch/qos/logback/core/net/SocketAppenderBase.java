@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.net.InetAddress;
-import java.net.Socket;
 
 import ch.qos.logback.core.AppenderBase;
 import ch.qos.logback.core.CoreConstants;
@@ -48,14 +47,11 @@ public abstract class SocketAppenderBase<E> extends AppenderBase<E> {
    * We remember host name as String in addition to the resolved InetAddress so
    * that it can be returned via getOption().
    */
-  protected String remoteHost;
+  protected String host;
 
-  protected InetAddress address;
   protected int port = DEFAULT_PORT;
   protected ObjectOutputStream oos;
   protected int reconnectionDelay = DEFAULT_RECONNECTION_DELAY;
-
-  private Connector connector;
 
   protected int counter = 0;
 
@@ -71,14 +67,14 @@ public abstract class SocketAppenderBase<E> extends AppenderBase<E> {
           + " For more information, please visit http://logback.qos.ch/codes.html#socket_no_port");
     }
 
-    if (address == null) {
+    if (host == null) {
       errorCount++;
       addError("No remote address was configured for appender"
           + name
           + " For more information, please visit http://logback.qos.ch/codes.html#socket_no_host");
     }
 
-    connect(address, port);
+    //connect(address, port);
 
     if (errorCount == 0) {
       this.started = true;
@@ -114,31 +110,8 @@ public abstract class SocketAppenderBase<E> extends AppenderBase<E> {
       }
       oos = null;
     }
-    if (connector != null) {
-      addInfo("Interrupting the connector.");
-      connector.interrupted = true;
-      connector = null; // allow gc
-    }
   }
 
-  void connect(InetAddress address, int port) {
-    if (this.address == null)
-      return;
-    try {
-      // First, close the previous connection if any.
-      cleanUp();
-      oos = new ObjectOutputStream(new Socket(address, port).getOutputStream());
-    } catch (IOException e) {
-
-      String msg = "Could not connect to remote logback server at ["
-          + address.getHostName() + "].";
-      if (reconnectionDelay > 0) {
-        msg += " We will try again later.";
-        fireConnector(); // fire the connector thread
-      }
-      addWarn(msg, e);
-    }
-  }
 
   @Override
   protected void append(E event) {
@@ -146,12 +119,12 @@ public abstract class SocketAppenderBase<E> extends AppenderBase<E> {
     if (event == null)
       return;
 
-    if (address == null) {
-      addError("No remote host is set for SocketAppender named \""
-          + this.name
-          + "\". For more information, please visit http://logback.qos.ch/codes.html#socket_no_host");
-      return;
-    }
+//    if (address == null) {
+//      addError("No remote host is set for SocketAppender named \""
+//          + this.name
+//          + "\". For more information, please visit http://logback.qos.ch/codes.html#socket_no_host");
+//      return;
+//    }
 
     if (oos != null) {
       try {
@@ -176,9 +149,6 @@ public abstract class SocketAppenderBase<E> extends AppenderBase<E> {
 
         oos = null;
         addWarn("Detected problem with connection: " + e);
-        if (reconnectionDelay > 0) {
-          fireConnector();
-        }
       }
     }
   }
@@ -186,15 +156,6 @@ public abstract class SocketAppenderBase<E> extends AppenderBase<E> {
   protected abstract void postProcessEvent(E event);
   protected abstract PreSerializationTransformer<E> getPST();
 
-  void fireConnector() {
-    if (connector == null) {
-      addInfo("Starting a new connector thread.");
-      connector = new Connector();
-      connector.setDaemon(true);
-      connector.setPriority(Thread.MIN_PRIORITY);
-      connector.start();
-    }
-  }
 
   protected static InetAddress getAddressByName(String host) {
     try {
@@ -210,15 +171,14 @@ public abstract class SocketAppenderBase<E> extends AppenderBase<E> {
    * name of the server where a {@link SocketNode} is running.
    */
   public void setRemoteHost(String host) {
-    address = getAddressByName(host);
-    remoteHost = host;
+    this.host = host;
   }
 
   /**
    * Returns value of the <b>RemoteHost</b> option.
    */
   public String getRemoteHost() {
-    return remoteHost;
+    return host;
   }
 
   /**
@@ -235,75 +195,6 @@ public abstract class SocketAppenderBase<E> extends AppenderBase<E> {
   public int getPort() {
     return port;
   }
-
-  /**
-   * The <b>ReconnectionDelay</b> option takes a positive integer representing
-   * the number of milliseconds to wait between each failed connection attempt
-   * to the server. The default value of this option is 30000 which corresponds
-   * to 30 seconds.
-   * 
-   * <p>
-   * Setting this option to zero turns off reconnection capability.
-   */
-  public void setReconnectionDelay(int delay) {
-    this.reconnectionDelay = delay;
-  }
-
-  /**
-   * Returns value of the <b>ReconnectionDelay</b> option.
-   */
-  public int getReconnectionDelay() {
-    return reconnectionDelay;
-  }
-
   
-  /**
-   * The Connector will reconnect when the server becomes available again. It
-   * does this by attempting to open a new connection every
-   * <code>reconnectionDelay</code> milliseconds.
-   * 
-   * <p>
-   * It stops trying whenever a connection is established. It will restart to
-   * try reconnect to the server when previpously open connection is droppped.
-   * 
-   * @author Ceki G&uuml;lc&uuml;
-   * @since 0.8.4
-   */
-  class Connector extends Thread {
-
-    boolean interrupted = false;
-
-    public void run() {
-      Socket socket;
-      while (!interrupted) {
-        try {
-          sleep(reconnectionDelay);
-          addInfo("Attempting connection to " + address.getHostName());
-          socket = new Socket(address, port);
-          synchronized (this) {
-            oos = new ObjectOutputStream(socket.getOutputStream());
-            connector = null;
-            addInfo("Connection established. Exiting connector thread.");
-            break;
-          }
-        } catch (InterruptedException e) {
-          addInfo("Connector interrupted. Leaving loop.");
-          return;
-        } catch (java.net.ConnectException e) {
-          addInfo("Remote host " + address.getHostName()
-              + " refused connection.");
-        } catch (IOException e) {
-          addInfo("Could not connect to " + address.getHostName()
-              + ". Exception is " + e);
-        }
-      }
-      // addInfo("Exiting Connector.run() method.");
-    }
-
-    /**
-     * public void finalize() { LogLog.debug("Connector finalize() has been
-     * called."); }
-     */
-  }
 
 }

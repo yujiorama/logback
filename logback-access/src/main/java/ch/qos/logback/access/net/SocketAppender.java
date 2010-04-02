@@ -43,9 +43,7 @@ public class SocketAppender extends SocketAppenderBase<AccessEvent> {
    * Connects to remote server at <code>address</code> and <code>port</code>.
    */
   public SocketAppender(InetAddress address, int port) {
-    this.address = address;
-    this.remoteHost = address.getHostName();
-    this.port = port;
+    this(address.getHostName(), port);
   }
 
   /**
@@ -53,8 +51,7 @@ public class SocketAppender extends SocketAppenderBase<AccessEvent> {
    */
   public SocketAppender(String host, int port) {
     this.port = port;
-    this.address = getAddressByName(host);
-    this.remoteHost = host;
+    this.host = host;
   }
   
   @Override

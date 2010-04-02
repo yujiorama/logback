@@ -15,26 +15,34 @@ package ch.qos.logback.core.recovery;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 import ch.qos.logback.core.Context;
+import ch.qos.logback.core.spi.ContextAware;
+import ch.qos.logback.core.spi.ContextAwareImpl;
 import ch.qos.logback.core.status.ErrorStatus;
 import ch.qos.logback.core.status.InfoStatus;
 import ch.qos.logback.core.status.Status;
 import ch.qos.logback.core.status.StatusManager;
 
-abstract public class ResilientOutputStreamBase extends OutputStream {
+abstract public class ResilientOutputStreamBase extends OutputStream implements
+    ContextAware {
 
   final static int STATUS_COUNT_LIMIT = 2 * 4;
 
   private int noContextWarning = 0;
   private int statusCount = 0;
 
-  private Context context;
   private RecoveryCoordinator recoveryCoordinator;
 
   protected OutputStream os;
   protected boolean presumedClean = true;
 
+  private ContextAwareImpl cai = new ContextAwareImpl(this);
+
+  List<ResilientOutputStreamListener> listenerList = new ArrayList<ResilientOutputStreamListener>();
+  
   final private boolean isPresumedInError() {
     // existence of recoveryCoordinator indicates failed state
     return (recoveryCoordinator != null && !presumedClean);
@@ -126,12 +134,23 @@ abstract public class ResilientOutputStreamBase extends OutputStream {
     try {
       os = openNewOutputStream();
       presumedClean = true;
+      fireOutputStreamChangedEvent();
     } catch (IOException e) {
       addStatusIfCountNotOverLimit(new ErrorStatus("Failed to open "
           + getDescription(), this, e));
     }
   }
+  
+  void fireOutputStreamChangedEvent() {
+    for(ResilientOutputStreamListener listener: listenerList) {
+      listener.outputStreamChangedEvent();
+    }
+  }
 
+  void addResilientOutputStreamListener(ResilientOutputStreamListener listener) {
+    listenerList.add(listener);
+  }
+  
   void addStatusIfCountNotOverLimit(Status s) {
     ++statusCount;
     if (statusCount < STATUS_COUNT_LIMIT) {
@@ -146,23 +165,49 @@ abstract public class ResilientOutputStreamBase extends OutputStream {
   }
 
   public void addStatus(Status status) {
-    if (context == null) {
+    if (cai.getContext() == null) {
       if (noContextWarning++ == 0) {
         System.out.println("LOGBACK: No context given for " + this);
       }
       return;
     }
-    StatusManager sm = context.getStatusManager();
+    
+    StatusManager sm = cai.getStatusManager();
     if (sm != null) {
       sm.add(status);
     }
   }
 
   public Context getContext() {
-    return context;
+    return  cai.getContext();
   }
 
   public void setContext(Context context) {
-    this.context = context;
+    cai.setContext(context);
+  }
+
+  public void addError(String msg) {
+    cai.addError(msg);
+  }
+
+  public void addError(String msg, Throwable ex) {
+    cai.addError(msg, ex);
+  }
+
+  public void addInfo(String msg) {
+    cai.addInfo(msg);
+    
+  }
+
+  public void addInfo(String msg, Throwable ex) {
+    cai.addInfo(msg, ex);
+  }
+
+  public void addWarn(String msg) {
+    cai.addWarn(msg);
+  }
+
+  public void addWarn(String msg, Throwable ex) {
+    cai.addWarn(msg, ex);
   }
 }

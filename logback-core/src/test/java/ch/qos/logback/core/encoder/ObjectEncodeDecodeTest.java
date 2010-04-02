@@ -17,8 +17,8 @@ import ch.qos.logback.core.util.CoreTestConstants;
 
 public class ObjectEncodeDecodeTest {
 
-  ObjectStreamEncoder<String> encoder = new ObjectStreamEncoder<String>();
-  EventObjectInputStream<String> eventStream;
+  BatchedObjectStreamEncoder<String> encoder = new BatchedObjectStreamEncoder<String>();
+  BatchedEventObjectInputStream<String> eventStream;
 
   int diff = RandomUtil.getPositiveInt();
   protected String randomOutputDir = CoreTestConstants.OUTPUT_DIR_PREFIX + diff
@@ -43,7 +43,7 @@ public class ObjectEncodeDecodeTest {
   
   List<String> decodeList(File file) throws IOException {
     FileInputStream fis = new FileInputStream(file);
-    eventStream = new EventObjectInputStream<String>(fis);
+    eventStream = new BatchedEventObjectInputStream<String>(fis);
     List<String> back = new ArrayList<String>();
     String e;
     while((e=eventStream.readEvent()) != null) {

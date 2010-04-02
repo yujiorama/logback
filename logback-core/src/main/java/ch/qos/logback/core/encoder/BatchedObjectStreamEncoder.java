@@ -29,7 +29,7 @@ import ch.qos.logback.core.CoreConstants;
  *
  * @param <E>
  */
-public class ObjectStreamEncoder<E> extends EncoderBase<E> {
+public class BatchedObjectStreamEncoder<E> extends EncoderBase<E> {
 
   static public int START_PEBBLE = 1853421169;
   //static public int START_PEBBLE = 1;

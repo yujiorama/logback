@@ -14,8 +14,8 @@
 package ch.qos.logback.core.encoder;
 
 import static ch.qos.logback.core.CoreConstants.BYTES_PER_INT;
-import static ch.qos.logback.core.encoder.ObjectStreamEncoder.START_PEBBLE;
-import static ch.qos.logback.core.encoder.ObjectStreamEncoder.STOP_PEBBLE;
+import static ch.qos.logback.core.encoder.BatchedObjectStreamEncoder.START_PEBBLE;
+import static ch.qos.logback.core.encoder.BatchedObjectStreamEncoder.STOP_PEBBLE;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,14 +30,14 @@ import java.util.List;
  *
  * @param <E>
  */
-public class EventObjectInputStream<E> extends InputStream {
+public class BatchedEventObjectInputStream<E> extends InputStream {
 
   NonClosableInputStream ncis;
   List<E> buffer = new ArrayList<E>();
 
   int index = 0;
 
-  EventObjectInputStream(InputStream is) throws IOException {
+  BatchedEventObjectInputStream(InputStream is) throws IOException {
     this.ncis = new NonClosableInputStream(is);
   }
 

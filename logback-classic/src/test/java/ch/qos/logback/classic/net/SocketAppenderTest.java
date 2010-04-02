@@ -209,7 +209,8 @@ public class SocketAppenderTest {
 
   @Test
   public void lateServerLaunch() throws InterruptedException {
-    socketAppender.setReconnectionDelay(20);
+    // FIXME
+    //socketAppender.setReconnectionDelay(20);
     configureClient();
     Logger logger = lc.getLogger(Logger.ROOT_LOGGER_NAME);
     logger.debug("test msg");
