@@ -13,12 +13,15 @@
  */
 package ch.qos.logback.core.recovery;
 
+import java.io.OutputStream;
+
 public interface ResilientOutputStreamListener {
 
   /**
    * ResilientOutputStream instance will fire this event each time the
    * underlying output stream of the instance is changed.
    */
-  void outputStreamChangedEvent();
-
+  void outputStreamChangedEvent(OutputStream os);
+  
+  void presumedInError();
 }

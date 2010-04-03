@@ -21,47 +21,58 @@ import java.net.Socket;
 import ch.qos.logback.core.Context;
 import ch.qos.logback.core.spi.ContextAware;
 
-public class ResilientSocketStream extends ResilientOutputStreamBase implements ContextAware {
+public class ResilientSocketStream extends ResilientOutputStreamBase implements
+    ContextAware {
 
-  String host;
   int port;
-  Context context;
   InetAddress inetAddress;
-  
-  public ResilientSocketStream(String host, int port)
-      throws IOException {
-    super();
-    this.host = host;
-    this.port = port;
-    super.os = openNewOutputStream();
-    this.presumedClean = true;
-  }
 
-  protected InetAddress getAddressByName(String host) {
+  public ResilientSocketStream(InetAddress inetAddress, int port) {
+    super();
+    this.inetAddress = inetAddress;
+    this.port = port;
     try {
-      return InetAddress.getByName(host);
-    } catch (Exception e) {
-      addError("Could not find address of [" + host + "].", e);
-      return null;
+      this.os = openNewOutputStream();
+      this.presumedClean = true;
+    } catch (IOException e) {
+      postIOFailure(e);
     }
   }
+
+  public ResilientSocketStream(InetAddress inetAddress, int port, ResilientOutputStreamListener listener, Context context) {
+    super();
+    this.inetAddress = inetAddress;
+    this.port = port;
+    setContext(context);
+    addResilientOutputStreamListener(listener);
+    try {
+      this.os = openNewOutputStream();
+      this.presumedClean = true;
+    } catch (IOException e) {
+      postIOFailure(e);
+    }
+  }
+
   
   
-  @Override
-  String getDescription() {
-    return "socket stream ["+host+":"+port+"]";
+  final public boolean isPresumedInError() {
+    return (recoveryCoordinator != null && !presumedClean);
   }
 
   @Override
-  OutputStream openNewOutputStream() throws IOException {
-    Socket socket = new Socket(inetAddress, port);
-    return  socket.getOutputStream();
+  String getDescription() {
+    return "socket stream [" + inetAddress.getHostName() + ":" + port + "]";
   }
-  
+
+  @Override
+  public OutputStream openNewOutputStream() throws IOException {
+    Socket socket = new Socket(inetAddress, port);
+    return socket.getOutputStream();
+  }
+
   @Override
   public String toString() {
     return "c.q.l.c.recovery.ResilientSocketStream@"
         + System.identityHashCode(this);
   }
- 
 }

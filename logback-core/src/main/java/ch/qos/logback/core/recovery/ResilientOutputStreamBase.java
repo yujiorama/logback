@@ -34,7 +34,7 @@ abstract public class ResilientOutputStreamBase extends OutputStream implements
   private int noContextWarning = 0;
   private int statusCount = 0;
 
-  private RecoveryCoordinator recoveryCoordinator;
+  protected RecoveryCoordinator recoveryCoordinator;
 
   protected OutputStream os;
   protected boolean presumedClean = true;
@@ -42,7 +42,7 @@ abstract public class ResilientOutputStreamBase extends OutputStream implements
   private ContextAwareImpl cai = new ContextAwareImpl(this);
 
   List<ResilientOutputStreamListener> listenerList = new ArrayList<ResilientOutputStreamListener>();
-  
+
   final private boolean isPresumedInError() {
     // existence of recoveryCoordinator indicates failed state
     return (recoveryCoordinator != null && !presumedClean);
@@ -111,6 +111,7 @@ abstract public class ResilientOutputStreamBase extends OutputStream implements
     presumedClean = false;
     if (recoveryCoordinator == null) {
       recoveryCoordinator = new RecoveryCoordinator();
+      firePresumedInErrorChangedEvent();
     }
   }
 
@@ -140,17 +141,24 @@ abstract public class ResilientOutputStreamBase extends OutputStream implements
           + getDescription(), this, e));
     }
   }
-  
+
   void fireOutputStreamChangedEvent() {
-    for(ResilientOutputStreamListener listener: listenerList) {
-      listener.outputStreamChangedEvent();
+    for (ResilientOutputStreamListener listener : listenerList) {
+      listener.outputStreamChangedEvent(this);
     }
   }
 
-  void addResilientOutputStreamListener(ResilientOutputStreamListener listener) {
+  void firePresumedInErrorChangedEvent() {
+    for (ResilientOutputStreamListener listener : listenerList) {
+      listener.presumedInError();
+    }
+  }
+
+  public void addResilientOutputStreamListener(
+      ResilientOutputStreamListener listener) {
     listenerList.add(listener);
   }
-  
+
   void addStatusIfCountNotOverLimit(Status s) {
     ++statusCount;
     if (statusCount < STATUS_COUNT_LIMIT) {
@@ -171,7 +179,7 @@ abstract public class ResilientOutputStreamBase extends OutputStream implements
       }
       return;
     }
-    
+
     StatusManager sm = cai.getStatusManager();
     if (sm != null) {
       sm.add(status);
@@ -179,7 +187,7 @@ abstract public class ResilientOutputStreamBase extends OutputStream implements
   }
 
   public Context getContext() {
-    return  cai.getContext();
+    return cai.getContext();
   }
 
   public void setContext(Context context) {
@@ -196,7 +204,6 @@ abstract public class ResilientOutputStreamBase extends OutputStream implements
 
   public void addInfo(String msg) {
     cai.addInfo(msg);
-    
   }
 
   public void addInfo(String msg, Throwable ex) {

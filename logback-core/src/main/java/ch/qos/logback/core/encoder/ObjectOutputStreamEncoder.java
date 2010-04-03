@@ -18,18 +18,30 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 
 import ch.qos.logback.core.CoreConstants;
+import ch.qos.logback.core.recovery.ResilientOutputStreamListener;
 
-public class ObjectOutputStreamEncoder<E> extends EncoderBase<E> {
+public class ObjectOutputStreamEncoder<E> extends EncoderBase<E> implements
+    ResilientOutputStreamListener {
 
   ObjectOutputStream oos;
+  OutputStream os;
   protected int counter = 0;
-
+  
+  boolean presumedInError = false;
+  
   @Override
   public void init(OutputStream os) throws IOException {
+    this.os = os;
     oos = new ObjectOutputStream(os);
   }
 
   public void doEncode(E event) throws IOException {
+    // if in error then provoke recovery
+    if (presumedInError) {
+      os.write(0);
+      return;
+    }
+    
     oos.writeObject(event);
     oos.flush();
     if (++counter >= CoreConstants.OOS_RESET_FREQUENCY) {
@@ -41,8 +53,27 @@ public class ObjectOutputStreamEncoder<E> extends EncoderBase<E> {
 
   }
 
-  public void close() throws IOException {
-    oos.close();
+  public void close() {
+    if (oos == null) {
+      return;
+    }
+    try {
+      oos.close();
+    } catch (IOException e) {
+
+    }
   }
 
+  public void outputStreamChangedEvent(OutputStream os) {
+    try {
+      this.os = os;
+      oos = new ObjectOutputStream(os);
+      presumedInError = false;
+    } catch (IOException e) {
+    }
+  }
+
+  public void presumedInError() {
+    presumedInError = true;
+  }
 }

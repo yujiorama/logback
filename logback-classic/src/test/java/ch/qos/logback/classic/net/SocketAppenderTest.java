@@ -31,6 +31,8 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.LoggerContextVO;
 import ch.qos.logback.core.read.ListAppender;
+import ch.qos.logback.core.recovery.RecoveryCoordinator;
+import ch.qos.logback.core.status.OnConsoleStatusListener;
 import ch.qos.logback.core.util.StatusPrinter;
 
 public class SocketAppenderTest {
@@ -40,8 +42,8 @@ public class SocketAppenderTest {
   static final int SLEEP_AFTER_LOG = 100;
 
   int port = 4561;
-  LoggerContext lc = new LoggerContext();
-  LoggerContext serverLC = new LoggerContext();
+  LoggerContext context = new LoggerContext();
+  LoggerContext serverContext = new LoggerContext();
   ListAppender<ILoggingEvent> la = new ListAppender<ILoggingEvent>();
   SocketAppender socketAppender = new SocketAppender();
   private boolean includeCallerData = false;
@@ -50,10 +52,11 @@ public class SocketAppenderTest {
   @Test
   public void startFailNoRemoteHost() {
     SocketAppender appender = new SocketAppender();
-    appender.setContext(lc);
+    appender.setContext(context);
     appender.setPort(123);
     appender.start();
-    assertEquals(1, lc.getStatusManager().getCount());
+    StatusPrinter.print(context);
+    assertEquals(1, context.getStatusManager().getCount());
   }
 
   @Test
@@ -62,7 +65,7 @@ public class SocketAppenderTest {
     waitForServerToStart();
     configureClient();
 
-    Logger logger = lc.getLogger(Logger.ROOT_LOGGER_NAME);
+    Logger logger = context.getLogger(Logger.ROOT_LOGGER_NAME);
     logger.debug("test msg");
 
     Thread.sleep(SLEEP_AFTER_LOG);
@@ -84,7 +87,7 @@ public class SocketAppenderTest {
     waitForServerToStart();
     configureClient();
 
-    Logger logger = lc.getLogger(Logger.ROOT_LOGGER_NAME);
+    Logger logger = context.getLogger(Logger.ROOT_LOGGER_NAME);
     logger.debug("test msg");
     Thread.sleep(SLEEP_AFTER_LOG);
 
@@ -114,7 +117,7 @@ public class SocketAppenderTest {
     waitForServerToStart();
     configureClient();
 
-    Logger logger = lc.getLogger(Logger.ROOT_LOGGER_NAME);
+    Logger logger = context.getLogger(Logger.ROOT_LOGGER_NAME);
 
     MDC.put("key", "testValue");
     logger.debug("test msg");
@@ -140,7 +143,7 @@ public class SocketAppenderTest {
     waitForServerToStart();
     configureClient();
 
-    Logger logger = lc.getLogger(Logger.ROOT_LOGGER_NAME);
+    Logger logger = context.getLogger(Logger.ROOT_LOGGER_NAME);
     logger.debug("test msg");
 
     Thread.sleep(SLEEP_AFTER_LOG);
@@ -162,7 +165,7 @@ public class SocketAppenderTest {
     // Thread.sleep(SLEEP_AFTER_SERVER_START);
     configureClient();
 
-    Logger logger = lc.getLogger(Logger.ROOT_LOGGER_NAME);
+    Logger logger = context.getLogger(Logger.ROOT_LOGGER_NAME);
 
     Marker marker = MarkerFactory.getMarker("testMarker");
     logger.debug(marker, "test msg");
@@ -184,7 +187,7 @@ public class SocketAppenderTest {
 
     configureClient();
 
-    Logger logger = lc.getLogger(Logger.ROOT_LOGGER_NAME);
+    Logger logger = context.getLogger(Logger.ROOT_LOGGER_NAME);
 
     MDC.put("key", "testValue");
     logger.debug("test msg");
@@ -209,28 +212,30 @@ public class SocketAppenderTest {
 
   @Test
   public void lateServerLaunch() throws InterruptedException {
-    // FIXME
-    //socketAppender.setReconnectionDelay(20);
     configureClient();
-    Logger logger = lc.getLogger(Logger.ROOT_LOGGER_NAME);
+    context.getStatusManager().add(new OnConsoleStatusListener());
+    
+    Logger logger = context.getLogger(Logger.ROOT_LOGGER_NAME);
     logger.debug("test msg");
 
     fireServer();
     waitForServerToStart();
-    Thread.sleep(SLEEP_AFTER_LOG); // allow time for client and server to
-                                    // connect
-    logger.debug("test msg 2");
+    System.out.println("Server started");
+    Thread.sleep(RecoveryCoordinator.BACKOFF_COEFFICIENT_MIN+10); 
+    
+    logger.debug("test msg 2"); // trigger connection establishment 
+    logger.debug("test msg 3");
     Thread.sleep(SLEEP_AFTER_LOG);
 
     simpleSocketServer.close();
     Thread.sleep(SLEEP_AFTER_LOG);
     simpleSocketServer.join(JOIN_OR_WAIT_TIMEOUT);
-    StatusPrinter.print(lc);
+    //StatusPrinter.print(context);
     assertTrue(simpleSocketServer.isClosed());
     assertEquals(1, la.list.size());
 
     ILoggingEvent remoteEvent = la.list.get(0);
-    assertEquals("test msg 2", remoteEvent.getMessage());
+    assertEquals("test msg 3", remoteEvent.getMessage());
     assertEquals(Level.DEBUG, remoteEvent.getLevel());
   }
 
@@ -241,27 +246,27 @@ public class SocketAppenderTest {
   }
 
   private void fireServer() throws InterruptedException {
-    Logger root = serverLC.getLogger("root");
+    Logger root = serverContext.getLogger("root");
     la.setName(LIST_APPENDER_NAME);
-    la.setContext(serverLC);
+    la.setContext(serverContext);
     la.start();
     root.addAppender(la);
-    simpleSocketServer = new SimpleSocketServer(serverLC, port);
+    simpleSocketServer = new SimpleSocketServer(serverContext, port);
     simpleSocketServer.start();
     Thread.yield();
   }
 
   ListAppender<ILoggingEvent> getListAppender() {
-    Logger root = serverLC.getLogger("root");
+    Logger root = serverContext.getLogger("root");
     return (ListAppender<ILoggingEvent>) root.getAppender(LIST_APPENDER_NAME);
   }
 
   private void configureClient() {
-    lc = new LoggerContext();
-    lc.setName("test");
-    lc.putProperty("testKey", "testValue");
-    Logger root = lc.getLogger(Logger.ROOT_LOGGER_NAME);
-    socketAppender.setContext(lc);
+    context = new LoggerContext();
+    context.setName("test");
+    context.putProperty("testKey", "testValue");
+    Logger root = context.getLogger(Logger.ROOT_LOGGER_NAME);
+    socketAppender.setContext(context);
     socketAppender.setName("socket");
     socketAppender.setPort(port);
     socketAppender.setRemoteHost("localhost");

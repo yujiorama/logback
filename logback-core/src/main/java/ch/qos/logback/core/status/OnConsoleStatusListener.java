@@ -28,5 +28,6 @@ public class OnConsoleStatusListener implements StatusListener {
     StringBuilder sb = new StringBuilder();
     StatusPrinter.buildStr(sb, "", status);
     System.out.print(sb);
+    System.out.flush();
   }
 }
