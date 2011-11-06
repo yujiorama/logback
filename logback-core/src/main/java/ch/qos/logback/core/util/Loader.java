@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.security.AccessControlException;
 import java.security.AccessController;
+import java.security.Permission;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -34,7 +35,7 @@ public class Loader {
 
   private static boolean ignoreTCL = false;
   public static final String IGNORE_TCL_PROPERTY_NAME = "logback.ignoreTCL";
-  private static boolean HAS_GET_CLASS_LOADER_PERMISSION = false;
+  private static Permission GET_CLASS_LOADER_PERMISSION = new RuntimePermission("getClassLoader");
 
   static {
     String ignoreTCLProp = OptionHelper.getSystemProperty(
@@ -43,19 +44,6 @@ public class Loader {
     if (ignoreTCLProp != null) {
       ignoreTCL = OptionHelper.toBoolean(ignoreTCLProp, true);
     }
-
-    HAS_GET_CLASS_LOADER_PERMISSION =
-            AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
-              public Boolean run() {
-                try {
-                  AccessController.checkPermission(
-                          new RuntimePermission("getClassLoader"));
-                  return true;
-                } catch (AccessControlException e) {
-                  return false;
-                }
-              }
-            });
   }
 
   /**
@@ -70,6 +58,10 @@ public class Loader {
   public static List<URL> getResourceOccurenceCount(String resource,
                                                     ClassLoader classLoader) throws IOException {
     List<URL> urlList = new ArrayList<URL>();
+    if(classLoader == null) {
+      // this can happen if a SecurityManager didn't allow access to the ClassLoader previously.
+      return urlList;
+    }
     Enumeration<URL> urlEnum = classLoader.getResources(resource);
     while (urlEnum.hasMoreElements()) {
       URL url = urlEnum.nextElement();
@@ -86,6 +78,10 @@ public class Loader {
    * @param classLoader the classloader used for the search
    */
   public static URL getResource(String resource, ClassLoader classLoader) {
+    if(classLoader == null) {
+      // prevent the cost of NPE
+      return null;
+    }
     try {
       return classLoader.getResource(resource);
     } catch (Throwable t) {
@@ -120,6 +116,9 @@ public class Loader {
   public static Class loadClass(String clazz, Context context)
           throws ClassNotFoundException {
     ClassLoader cl = getClassLoaderOfObject(context);
+    if(cl == null) {
+      throw new ClassNotFoundException("Couldn't load class '"+clazz+"' since access to ClassLoader was not allowed by SecurityManager.");
+    }
     return cl.loadClass(clazz);
   }
 
@@ -132,26 +131,9 @@ public class Loader {
    */
   public static ClassLoader getClassLoaderOfObject(Object o) {
     if (o == null) {
-      throw new NullPointerException("Argument cannot be null");
+      throw new IllegalArgumentException("Argument must not be null!");
     }
     return getClassLoaderOfClass(o.getClass());
-  }
-
-  /**
-   * Returns the class loader of clazz in an access privileged section.
-   * @param clazz
-   * @return
-   */
-  public static ClassLoader getClassLoaderAsPrivileged(final Class clazz) {
-    if (!HAS_GET_CLASS_LOADER_PERMISSION)
-      return null;
-    else
-      return AccessController.doPrivileged(
-              new PrivilegedAction<ClassLoader>() {
-                public ClassLoader run() {
-                  return clazz.getClassLoader();
-                }
-              });
   }
 
   /**
@@ -162,11 +144,30 @@ public class Loader {
    * @return
    */
   public static ClassLoader getClassLoaderOfClass(final Class clazz) {
-    ClassLoader cl = clazz.getClassLoader();
-    if (cl == null) {
+    SecurityManager sm = System.getSecurityManager();
+    if(sm == null) {
+      ClassLoader cl = clazz.getClassLoader();
+      if(cl != null) {
+        return cl;
+      }
       return ClassLoader.getSystemClassLoader();
     } else {
-      return cl;
+      try {
+        AccessController.checkPermission(GET_CLASS_LOADER_PERMISSION);
+        return AccessController.doPrivileged(
+              new PrivilegedAction<ClassLoader>() {
+                public ClassLoader run() {
+                  ClassLoader cl = clazz.getClassLoader();
+                  if(cl != null) {
+                    return cl;
+                  }
+                  return ClassLoader.getSystemClassLoader();
+                }
+              });
+
+      } catch (AccessControlException ex) {
+        return null;
+      }
     }
   }
 
