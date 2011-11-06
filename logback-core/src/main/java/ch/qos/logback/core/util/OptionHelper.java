@@ -29,6 +29,10 @@ public class OptionHelper {
       Class superClass, Context context) throws IncompatibleClassException,
       DynamicClassLoadingException {
     ClassLoader classLoader = Loader.getClassLoaderOfObject(context);
+    if(classLoader == null) {
+      throw new DynamicClassLoadingException("Failed to instantiate type "
+          + className + " - Could not obtain ClassLoader due to SecurityManager restrictions.");
+    }
     return instantiateByClassName(className, superClass, classLoader);
   }
 
@@ -38,7 +42,11 @@ public class OptionHelper {
       throws IncompatibleClassException, DynamicClassLoadingException {
 
     if (className == null) {
-      throw new NullPointerException();
+      throw new IllegalArgumentException("className must not be null!");
+    }
+
+    if(classLoader == null) {
+      throw new IllegalArgumentException("classLoader must not be null!");
     }
 
     try {

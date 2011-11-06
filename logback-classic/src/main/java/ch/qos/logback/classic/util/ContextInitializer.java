@@ -175,6 +175,10 @@ public class ContextInitializer {
     if (url == null) {
       sm.add(new InfoStatus("Could NOT find resource [" + resourceName + "]",
               loggerContext));
+      if(classLoader == null) {
+        sm.add(new InfoStatus("Could NOT search for resource [" + resourceName + "] via ClassLoader since SecurityManager did not allow access.",
+                loggerContext));
+      }
     } else {
       sm.add(new InfoStatus("Found resource [" + resourceName + "] at [" + url.toString() + "]",
               loggerContext));
