@@ -40,7 +40,7 @@ public class ConfigurationAction extends Action {
     if (OptionHelper.isEmpty(debugAttrib) || debugAttrib.equals("false") || debugAttrib.equals("null")) {
       addInfo(INTERNAL_DEBUG_ATTR + " attribute not set");
     } else {
-      OnConsoleStatusListener.addNewInstanceToContext(context);
+      OnConsoleStatusListener.addNewInstanceToContext(this);
     }
 
     new ContextUtil(context).addHostNameAsProperty();

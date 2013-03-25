@@ -21,6 +21,7 @@ import ch.qos.logback.core.spi.LogbackLock;
 import ch.qos.logback.core.status.Status;
 import ch.qos.logback.core.status.StatusListener;
 import ch.qos.logback.core.status.StatusManager;
+import ch.qos.logback.core.status.WarnStatus;
 
 public class BasicStatusManager implements StatusManager {
 
@@ -109,6 +110,18 @@ public class BasicStatusManager implements StatusManager {
     synchronized (statusListenerListLock) {
       statusListenerList.add(listener);
     }
+  }
+
+  public boolean addUniquely(StatusListener newListener, Object origin) {
+    for (StatusListener listener : getCopyOfStatusListenerList()) {
+      if (listener.getClass().isInstance(newListener)) {
+        add(new WarnStatus("A previous listener of type [" + listener.getClass()
+                + "] has been already registered. Skipping double registration.", origin));
+        return false;
+      }
+    }
+    add(newListener);
+    return true;
   }
 
   public void remove(StatusListener listener) {

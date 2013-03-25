@@ -17,6 +17,8 @@ import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.*;
 
+import ch.qos.logback.core.spi.ContextAware;
+import ch.qos.logback.core.spi.ContextAwareBase;
 import ch.qos.logback.core.status.OnConsoleStatusListener;
 import ch.qos.logback.core.testUtil.RandomUtil;
 import org.junit.*;
@@ -49,6 +51,7 @@ public class SocketAppenderTest {
 
   String mdcKey = "key" + diff;
   LoggerContext loggerContext = new LoggerContext();
+  ContextAware contextAware = new ContextAwareBase(this);
   SocketAppender socketAppender = new SocketAppender();
   private boolean includeCallerData = false;
 
@@ -67,6 +70,7 @@ public class SocketAppenderTest {
 
   @Before
   public void setUp() {
+    contextAware.setContext(loggerContext);
   }
 
   @After
@@ -214,7 +218,7 @@ public class SocketAppenderTest {
 
     socketAppender.setReconnectionDelay(RECONNECT_DELAY);
     configureClient();
-    OnConsoleStatusListener.addNewInstanceToContext(loggerContext);
+    OnConsoleStatusListener.addNewInstanceToContext(contextAware);
 
     Logger logger = loggerContext.getLogger(Logger.ROOT_LOGGER_NAME);
     logger.debug("test msg");

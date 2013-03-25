@@ -48,7 +48,7 @@ public class ConfigurationAction extends Action {
             || debugAttrib.equalsIgnoreCase("null")) {
       addInfo(INTERNAL_DEBUG_ATTR + " attribute not set");
     } else {
-      OnConsoleStatusListener.addNewInstanceToContext(context);
+      OnConsoleStatusListener.addNewInstanceToContext(this);
     }
 
     processScanAttrib(ic, attributes);
