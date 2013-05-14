@@ -73,29 +73,35 @@ import ch.qos.logback.core.util.StatusPrinter;
 public class LogbackValve extends ValveBase implements Lifecycle, Context,
     AppenderAttachable<IAccessEvent>, FilterAttachable<IAccessEvent> {
 
+  private static final String CATALINA_HOME_PROPERTY = "catalina.home";
+  private static final String CATALINA_BASE_PROPERTY = "catalina.base";
+
   public final static String DEFAULT_CONFIG_FILE = "conf" + File.separatorChar
       + "logback-access.xml";
 
   private final LifeCycleManager lifeCycleManager = new LifeCycleManager();
   
-  private long birthTime = System.currentTimeMillis();
-  LogbackLock configurationLock = new LogbackLock();
+  private final long birthTime = System.currentTimeMillis();
+  private final LogbackLock configurationLock = new LogbackLock();
 
-  // Attributes from ContextBase:
-  private String name;
-  StatusManager sm = new BasicStatusManager();
+  private final StatusManager sm = new BasicStatusManager();
+
   // TODO propertyMap should be observable so that we can be notified
   // when it changes so that a new instance of propertyMap can be
   // serialized. For the time being, we ignore this shortcoming.
-  Map<String, String> propertyMap = new HashMap<String, String>();
-  Map<String, Object> objectMap = new HashMap<String, Object>();
-  private FilterAttachableImpl<IAccessEvent> fai = new FilterAttachableImpl<IAccessEvent>();
+  private final Map<String, String> propertyMap = new HashMap<String, String>();
 
-  AppenderAttachableImpl<IAccessEvent> aai = new AppenderAttachableImpl<IAccessEvent>();
-  String filename;
-  boolean quiet;
-  boolean started;
-  boolean alreadySetLogbackStatusManager = false;
+  private final Map<String, Object> objectMap = new HashMap<String, Object>();  
+  private final FilterAttachableImpl<IAccessEvent> fai = new FilterAttachableImpl<IAccessEvent>();
+  private final AppenderAttachableImpl<IAccessEvent> aai = new AppenderAttachableImpl<IAccessEvent>();
+
+  // Attributes from ContextBase:
+  private String name;
+
+  private String filename;
+  private boolean quiet;
+  private boolean started;
+  private boolean alreadySetLogbackStatusManager = false;
 
   private ExecutorService executorService; 
 
@@ -109,30 +115,8 @@ public class LogbackValve extends ValveBase implements Lifecycle, Context,
 
   public void startInternal() throws LifecycleException {
     executorService = ExecutorServiceUtil.newExecutorService();
-    if (filename == null) {
-      String tomcatHomeProperty = OptionHelper
-          .getSystemProperty("catalina.home");
-
-      filename = tomcatHomeProperty + File.separatorChar + DEFAULT_CONFIG_FILE;
-      getStatusManager().add(
-          new InfoStatus("filename property not set. Assuming [" + filename
-              + "]", this));
-    }
-    File configFile = new File(filename);
-
-    if (configFile.exists()) {
-      try {
-        JoranConfigurator jc = new JoranConfigurator();
-        jc.setContext(this);
-        jc.doConfigure(filename);
-      } catch (JoranException e) {
-        // TODO can we do better than printing a stack trace on syserr?
-        e.printStackTrace();
-      }
-    } else {
-      getStatusManager().add(
-          new WarnStatus("[" + filename + "] does not exist", this));
-    }
+    
+    doConfigure(configFile());
 
     if (!quiet) {
       StatusPrinter.print(getStatusManager());
@@ -140,6 +124,46 @@ public class LogbackValve extends ValveBase implements Lifecycle, Context,
 
     started = true;
     setState(LifecycleState.STARTING);
+  }
+
+  private void doConfigure(File configFile) {
+    if (configFile.exists()) {
+      try {
+        JoranConfigurator jc = new JoranConfigurator();
+        jc.setContext(this);
+        jc.doConfigure(configFile);
+      } catch (JoranException e) {
+        // TODO can we do better than printing a stack trace on syserr?
+        e.printStackTrace();
+      }
+    }
+    else {
+      getStatusManager().add(
+          new WarnStatus("[" + configFile + "] does not exist", this));
+    }
+  }
+
+  private File configFile() {
+    File configFile = null;
+    if (filename != null) {
+      configFile = new File(filename);
+    } else {
+      configFile = defaultConfigFile();
+      getStatusManager().add(
+          new InfoStatus("filename property not set. Assuming [" + configFile
+              + "]", this));
+    }
+    return configFile;
+  }
+
+  private File defaultConfigFile() {
+    File configFile = new File(OptionHelper.getSystemProperty(
+        CATALINA_BASE_PROPERTY, ""), DEFAULT_CONFIG_FILE);
+    if (!configFile.exists()) {
+      configFile = new File(OptionHelper.getSystemProperty(
+          CATALINA_HOME_PROPERTY, ""), DEFAULT_CONFIG_FILE);
+    }
+    return configFile;
   }
 
   public String getFilename() {
