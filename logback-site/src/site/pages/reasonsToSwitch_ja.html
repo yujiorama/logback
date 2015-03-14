@@ -1,0 +1,140 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" 
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8"></meta>
+    <title>logbackをお勧めするわけ</title>
+    <link rel="stylesheet" type="text/css" href="css/common.css"></link>
+    <link rel="stylesheet" type="text/css" href="css/screen.css" media="screen"></link>
+    <link rel="stylesheet" type="text/css" href="css/_print.css" media="print"></link>
+
+  </head>
+  <body onload="decorate();">
+    <script type="text/javascript">prefix='';</script>
+    <script src="templates/header.js" type="text/javascript"></script>
+    <script type="text/javascript" src="js/jquery-min.js"></script>
+    <script type="text/javascript" src="js/decorator.js"></script>
+    <div id="left">
+      <noscript>このメニューを表示するにはJavaScriptをONにしてください</noscript>
+      <script src="templates/left.js" type="text/javascript"></script>
+    </div>
+    <div id="content">
+		
+		<h2>log4jよりもlogbackをお勧めするわけ</h2>
+
+    <p>logbackは、その程度はどうであれlog4jから非常に多くの部分が改良されています。あまりにも多すぎて書ききれないほどです。それはそれとして、log4jからlogbackに切り替えるべき理由を一覧にしてみました。log4jとlogbackはどちらも同じ開発者が始めたプロジェクトなので、考え方もほぼ似通ったものであることも考慮してください。log4jに慣れているなら、すぐにlogbackにも慣れることができるでしょう。log4jのことを気に入ってくれているなら、きっとlogbackのことも気に入ってくれるはずです。</p>
+
+
+    <h3 class="doAnchor" name="fasterImpl">より高速な実装</h3>
+
+    <p>log4jでの経験に基づいて、logbackの特定の実行パスはおよそ10倍高速になるよう書き直されています。また、logbackのコンポーネントは高速なだけでなく、使用するメモリ量も少ないです。</p>
+
+    <h3 class="doAnchor" name="tdd">広範囲の膨大なテストセット</h3>
+
+    <p>logbackには、数年に及ぶ数えきれないほどの時間を費やした非常に広範囲に及ぶ膨大なテストセットがあります。log4jもそれなりにテストされているのですが、それに比べるとlogbackのテストは桁違いです。私たちとしては、log4jよりlogbackをお勧めする唯一にして最も重要な理由になると考えています。どれだけ不安定な状況であっても、ロギングフレームワークには金剛石のように頑丈で、信頼できるものであって欲しいはずです。
+    </p>
+    
+    <h3 class="doAnchor" name="slf4j">logback-classicはSLF4Jを直接実装している</h3>
+
+    <p>logback-classicの<code>Logger</code>クラスはSLF4J の API を直接実装しているので、SLF4J のロガーを呼び出すとき、logback-classic を使っていればオーバーヘッドはゼロになります。また、logback-classicは利用者に対してSLF4JのクライアントAPIを使うことを強く推奨しているので、もし log4j や j.u.l（java.util.logging）に切り替えなければならないとしても、jarファイルを1つ入れ替えるだけで済みます。SLF4JのAPIを使ってロギングしているなら、コードを変更する必要はありません。したがって、ロギングフレームワークを切り替えるために必要な作業は劇的に軽減されることになります。
+    </p>
+    
+    <h3 class="doAnchor" name="docs">豊富なドキュメント</h3>
+    
+    <p>logbackの配布物には、常に最新化されている詳細なドキュメントが同梱されています。</p>
+
+    <h3 class="doAnchor" name="DSL">設定ファイルをXML形式やGroovy言語で作成できる</h3>
+
+    <p>以前のlogbackの設定ファイルはXMLで書かれていました。実際に、マニュアルで紹介されている例のほとんどはXML形式で書かれています。ですが、logback 0.9.22 からは <a href="manual/groovy_ja.html">Groovy言語で書かれた設定ファイル</a>も利用できるようになりました。XMLで書かれた設定と比べると、Groovyで書かれた設定のほうが一貫性、直感的な理解のしやすさ、記述の短さといった面で優れています。
+    </p>
+
+    <p><a href="http://logback.qos.ch/translator/asGroovy.html">logback.xmlを自動的にlogback.groovyに変換するツール</a>も提供されています。</p>
+
+    <h3 class="doAnchor" name="autoScan">設定ファイルの自動的な再読み込み</h3>
+
+    <p>logback-classic では、<a href="manual/configuration_ja.html#autoScan">設定ファイルが変更されたら自動的に再読み込み</a>させることができます。変更を検出する処理は高速で、競合しません。また、数百ものスレッドから秒あたり数百万回のロギング呼び出しができるくらいの規模まで、動的にスケールできます。アプリケーションサーバでもちゃんと動作します。さらに、一般的なJavaEE環境においても、<em>専用のスレッドを生成しないで</em>設定ファイルの変更を検出することができます。
+   </p>
+
+    <h3 class="doAnchor" name="grace">入出力障害の自然な復旧</h3>
+
+    <p><code>RollingFileAppender</code>など、logbackの<code>FileAppender</code>とその派生クラスでは、入出力障害が発生しても自然に復旧します。つまり、ファイルサーバが一時的に利用できなくなったとしても、ロギングを再開するためにアプリケーションを再起動する必要がなくなったのです。ファイルサーバが復旧したら、やがて関連するアペンダーは透過的に、そして、すみやかに以前のエラー状態から復旧します。
+    </p>
+    
+    <h3 class="doAnchor" name="maxHistory">アーカイブした古いログファイルを自動的に削除</h3>
+
+    <p><a href="manual/appenders_ja.html#TimeBasedRollingPolicy">TimeBasedRollingPolicy</a>や<a href="manual/appenders_ja.html#SizeAndTimeBasedFNATP">SizeAndTimeBasedFNATP</a>のプロパティ<span class="option">maxHistory</span>を設定すれば、アーカイブしておくファイルの最大数を制御することができます。TimeBasedRollingPolicyが月単位でログファイルを切り替えるように設定されている場合、1年間分のログアーカイブを残しておきたければ、<span class="option">maxHistory</span>に12を設定するだけでいいのです。12ヶ月より古いログアーカイブは自動的に削除されます。
+    </p>
+
+    <h3 class="doAnchor" name="compression">アーカイブしたログファイルを自動的に圧縮</h3>
+
+    <p><a href="manual/appenders_ja.html#RollingFileAppender">RollingFileAppender</a>では、ログファイルを切り替えるとき、アーカイブを自動的に圧縮することができます。圧縮処理は常に非同期で実行されるので、ログファイルがどれだけ大きくても、圧縮処理の間アプリケーションがブロックされることはありません。
+    </p>
+
+    <h3 class="doAnchor" name="prudent">Prudentモード</h3>
+
+    <p><a href="manual/appenders_ja.html#prudent">prudentモード</a>では、複数のJVMで動いている複数の<code>FileAppender</code>から同じファイルへの書き込みを安全に行うことができます。若干の制限はありますが、<code>RollingFileAppender</code>でもprudentモードは有効です。
+    </p>
+
+    <h3 class="doAnchor" name="lilith">Lilith（ビューアー）</h3>
+
+    <p><a href="http://lilith.huxhorn.de/">Lilith</a>はlogbackのログおよびアクセスイベントのビューアーです。log4jのchainsawに相当するものですが、より大量のデータを扱えるように設計されています。</p>
+  
+    <h3 class="doAnchor" name="conditional">設定ファイル中の条件分岐</h3>
+
+    <p>開発者は、開発環境、テスト環境、本番環境など、様々な環境ごとに用意されたlogbackの設定ファイルの面倒を見なければならないことがあります。これらの設定ファイルの大部分は共通で、ほんの少しだけ異なっているのです。重複を避けるため、logbackでは<a href="manual/configuration_ja.html#conditional">設定ファイル中で条件分岐</a>を使えるようになっています。<code>&lt;if&gt;</code><code>&lt;then&gt;</code><code>&lt;else&gt;</code>といった要素を使えば、様々な環境で1つの設定ファイルを流用できるようになります。</p>
+
+
+    <h3 class="doAnchor" name="filters">フィルター</h3>
+
+    <p>logbackはlog4jよりもはるかに強力な<a href="manual/filters_ja.html">フィルタリング機能</a>を提供しています。たとえば、本番サーバーに配置された基幹系アプリケーションがあるとしましょう。大量のトランザクションを取り扱うことがわかっているので、警告やエラーだけがログに記録されるよう、ログレベルはWARNになっています。本番環境とテスト環境の間に生じた何らかの差異が原因で、本番環境で発生している事象がテスト環境では再現しなくて困っているところを想像してみてください。
+    </p>
+
+    <p>log4jを使っている場合、問題を特定するためにできることは、本番環境のログレベルをDEBUGに下げることだけでした。そうすると分析が困難なほどの膨大なログが出力されてしまいます。さらに重要なのは、ログが大量に出力されることで、本番環境で動作しているアプリケーションの性能に悪影響が出ることです。</p>
+
+    <p>logbackを使っている場合、問題の事象が発生する特定のユーザー（Aliceとしましょう）を除いた他のユーザーについては、ログレベルをWARNのままにしておくことができます。つまり、Aliceの行った操作によるログはログレベルDEBUGで出力して、他のユーザーのログはログレベルはWARNのままにしておくことができるのです。XML形式の設定ファイルに4行追加するだけで、このような振る舞いを実現することができます。。<code>MDCFilter</code>について、マニュアルの<a href="manual/filters_ja.html#TurboFilter">関連するセクション</a>を調べてみてください。
+    </p>
+    
+
+    <h3 class="doAnchor" name="sift">SiftingAppender</h3>
+    
+    <p><a href="manual/appenders_ja.html#SiftingAppender">SiftingAppender</a>は驚くほど汎用性のあるアペンダーです。実行時に参照できる<b>あらゆる</b>属性を使って、ログを分離したりふるいにかけることができます。例えば、<code>SiftingAppender</code>を使ってユーザーのセッションごとにロギングイベントを分離することができます。つまり、ユーザーごとに別のログファイルへログを出力することができます。
+    </p>
+    
+    <h3 class="doAnchor" name="packagingData">スタックトレースにパッケージ情報を含める</h3>
+
+    <p>logbackが出力する例外スタックトレースにはパッケージ情報を含めることができます。サンプルのWebアプリケーション<a href="demo.html">logback-demo</a>が生成するスタックトレースを見てください。</p>
+
+    <pre>14:28:48.835 [btpool0-7] INFO  c.q.l.demo.prime.PrimeAction - 99 is not a valid value
+java.lang.Exception: 99 is invalid
+  at ch.qos.logback.demo.prime.PrimeAction.execute(PrimeAction.java:28) [classes/:na]
+  at org.apache.struts.action.RequestProcessor.processActionPerform(RequestProcessor.java:431) [struts-1.2.9.jar:1.2.9]
+  at org.apache.struts.action.RequestProcessor.process(RequestProcessor.java:236) [struts-1.2.9.jar:1.2.9]
+  at org.apache.struts.action.ActionServlet.doPost(ActionServlet.java:432) [struts-1.2.9.jar:1.2.9]
+  at javax.servlet.http.HttpServlet.service(HttpServlet.java:820) [servlet-api-2.5-6.1.12.jar:6.1.12]
+  at org.mortbay.jetty.servlet.ServletHolder.handle(ServletHolder.java:502) [jetty-6.1.12.jar:6.1.12]
+  at ch.qos.logback.demo.UserServletFilter.doFilter(UserServletFilter.java:44) [classes/:na]
+  at org.mortbay.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1115) [jetty-6.1.12.jar:6.1.12]
+  at org.mortbay.jetty.servlet.ServletHandler.handle(ServletHandler.java:361) [jetty-6.1.12.jar:6.1.12]
+  at org.mortbay.jetty.webapp.WebAppContext.handle(WebAppContext.java:417) [jetty-6.1.12.jar:6.1.12]
+  at org.mortbay.jetty.handler.ContextHandlerCollection.handle(ContextHandlerCollection.java:230) [jetty-6.1.12.jar:6.1.12]</pre>
+
+    <p>これを見ると、アプリケーションはStruts1.2.9を使っていて、jetty6.1.12にデプロイされていることがわかります。このように、スタックトレースを見ただけで、例外を発生したときに辿っていたクラスの格納されたパッケージ（jar）とそのバージョンがわかるようになるのです。あなたの顧客が出くわしたスタックトレースを送付してもらうとき、どのパッケージのどのバージョンを使っているか、いちいち確認しなくてよくなるのです。それらのパッケージングに関する情報は、スタックトレースの一部として含まれているからです。詳しくは、<a href="manual/layouts_ja.html#xThrowable">"％xThrowable" 変換指示子</a>を参照してください。
+    </p>
+
+        <p>この機能はとても便利なので、一部のユーザーは<a href="http://www.jetbrains.net/devnet/message/5259058">IDEの機能</a>だと誤解するほどです。
+        </p>
+
+    <h3 class="doAnchor" name="logbackAccess">logback-accessは、HTTPアクセスの柔軟なロギングを可能にする、logbackに不可欠な機能です。</h3>
+
+        <p>これで最後です。logback-accessは、JettyやTomcatなどのサーブレットコンテナに統合された、リッチで強力なHTTPアクセスログ機能を提供するモジュールです。logbackの配布物として提供されています。logback-accessはlogbackの設計の初期段階から含まれているものなので、logback-classicで利用できるほとんどの機能が同じように利用できます。</p>
+
+    <h3 class="doAnchor" name="inSummary">まとめ</h3>
+
+    <p>log4jよりもlogbackをお勧めする理由をいくつか並べてみました。log4jの経験を元にして作られていることを考えれば、logbackは単純にbetter log4jであると言えるでしょう。</p>
+
+    <script src="templates/footer.js" type="text/javascript"></script>	   
+    </div>
+
+  </body>
+</html>
