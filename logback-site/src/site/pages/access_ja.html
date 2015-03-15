@@ -1,0 +1,423 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" 
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8"></meta>
+    <title>Logback-access</title>
+    <link rel="stylesheet" type="text/css" href="css/common.css"></link>
+    <link rel="stylesheet" type="text/css" href="css/screen.css" media="screen"></link>
+    <link rel="stylesheet" type="text/css" href="css/_print.css" media="print"></link>
+    <link rel="stylesheet" type="text/css" href="css/prettify.css" media="screen"></link>
+  </head>
+  <body onload="prettyPrint()">
+    <script type="text/javascript">prefix='';</script>
+    <script type="text/javascript" src="js/prettify.js"></script>    
+    <script src="templates/header.js" type="text/javascript"></script>
+    <div id="left">
+      <script src="templates/left.js" type="text/javascript"></script>
+    </div>
+    <div id="content">  
+	
+    <h2>logback-accessでHTTPアクセスログを記録する</h2>
+
+    <div class="author">著者: Ceki Gülcü, Sébastien Pennec		</div>
+
+
+    <script src="../templates/creative.js" type="text/javascript"></script>
+
+		<h1>はじめに</h1>
+
+    <p>logbackの標準配布物に含まれるlogback-accessは、JettyやTomcatなどのサーブレットコンテナに統合された、リッチで強力なHTTPアクセスログ機能を提供するモジュールです。
+    </p>
+		
+		<p>logbackは最初からモジュラーフレームワークとして設計されました。どんな状況であっても新しいコードを書かずにlogback-coreを再利用できるようにすることは、私たちにとって主要な目標の一つでした。logback-accessは、その戦略に基づいてlogback-coreを使って構築されたモジュールです。logback-classicと同等の機能を備えながらも、HTTPアクセスログだけを対象にしています。</p>
+
+    <p>logback-accessにはlogback-coreが必要ですが、logback-classicやSLF4Jとは無関係であることは覚えておいてください。同じく重要なのが、logback-accessのアーティファクトはWebアプリケーションごとではなく、コンテナに対して配置しなければならないことです。つまり、Webアプリケーションに<em>logback-access.jar</em>をバンドルしても意味が無いのです。
+    </p>
+
+		<h1><a name="tomcat" href="#tomcat">Tomcatでlogback-accessを使う</a></h1>
+		
+
+
+   
+
+		<p>Tomcatでlogback-accessを使うには、ダウンロードしたlogbackの配布物を展開して、<em>logback-core-${project.version}.jar</em>と<em>logback-access-${project.version}.jar</em>を$TOMCAT_HOME/libディレクトリに配置します。$TOMCAT_HOMEは、Tomcatをインストールしたディレクトリのことです。
+    </p>
+
+    <p class="highlight">Tomcat6.x（Tomcat7.xではなく）に最新のlogback-accessをデプロイすると、Tomcatサーバーがクラッシュする可能性があります。</p>
+
+    <p><span class="label notice">Tomcatの7.x</span> このバージョンのlogback-accessはTomcat 7.0.21でテストされています。Tomcat 6.xでは動作しません。
+		</p>
+   
+    <p><span class="label notice">Tomcatの6.x</span> logback-access 0.9.30ならTomcat 6.xにデプロイできるはずです。</p>
+
+		<h2>LogbackValve</h2>
+
+		<p><code><a href="xref/ch/qos/logback/access/tomcat/LogbackValve.html">ch.qos.logback.access.tomcat.LogbackValve</a></code>クラスは、Tomcatの<code><a href="http://tomcat.apache.org/tomcat-5.5-doc/catalina/docs/api/org/apache/catalina/valves/ValveBase.html">ValveBase</a></code>クラスを継承しています。普通はいくつものValeが組み合わさってプロセッシングパイプラインを形成します。
+		</p>
+	
+		<p>Tomcatで<code>LogbackValve</code>を使うには、<em>$TOMCAT_HOME/conf/serer.xml</em>に次の設定を追加します。</p>
+		<pre class="source">&lt;Valve className="ch.qos.logback.access.tomcat.LogbackValve"/&gt;</pre>
+
+		<p>この設定は<code>Engine要素</code>か<code>Host要素</code>の内部に追加してください。
+		</p>
+
+		<p><code>LogbackValve</code>は<em>logback-access.xml</em>という設定ファイルを、（デフォルトでは）<em>server.xml</em>と同じ場所、つまり、<em>$TOMCAT_HOME/conf</em>から探します。この設定ファイルでは、logback-accessがロギング要求を送信する先のアペンダーなどを設定します。設定の詳細については後述する<a href="#configuration">logback-accessの設定</a>を参照してください。
+    </p>
+		
+    <p>トラブルシューティングをしやすくするため、<code>LogbackValve</code>はデフォルトでは初期化時に内部状態を出力するようになっています。普通は次のように出力されます。</p>
+    
+    <p class="source">21:56:09,921 |-INFO in c.q.lb.access.j.a.ConfigurationAction - Ignoring debug attribute.
+21:56:09,921 |-INFO in c.q.lb.core.j.a.AppenderAction - About to instantiate appender of type [ch.qos.logback.core.ConsoleAppender]
+21:56:09,921 |-INFO in c.q.lb.core.j.a.AppenderAction - Naming appender as [STDOUT]
+21:56:10,000 |-INFO in c.q.lb.core.j.a.NestedComponentIA - Pushing component [layout] on top of the object stack.
+21:56:10,015 |-INFO in c.q.lb.core.j.a.AppenderAction - Popping appender named [STDOUT] from the object stack
+21:56:10,015 |-INFO in c.q.lb.core.j.a.AppenderRefAction - Attaching appender named [STDOUT] to ch.qos.logback.access.tomcat.LogbackValve[Catalina]
+21:56:10,015 |-INFO in c.q.lb.access.j.a.ConfigurationAction - End of configuration.</p>
+
+    <p>内部状態を出力するかどうかは<code>LogbackValve</code>のquiet属性で制御することができます。同様に、設定ファイルの名前としてlogback-access.xml以外の名前を指定することもできます。次のようにします。
+    </p>
+
+   <pre class="prettyprint source">&lt;Valve className="ch.qos.logback.access.tomcat.LogbackValve"
+       quiet="true" filename="c:/my-logback-access.xml"/&gt;</pre>
+
+    <h3><a name="viewingStatusMessages" href="#viewingStatusMessages">ステータスメッセージを参照する</a></h3>
+
+    <p>logback-accessには<code>ViewStatusMessagesServlet</code>というサーブレットが含まれています。このサーブレットは、<code>LogbackValve</code>の内部状態メッセージをHTMLのテーブルとして出力するものです。次のような出力になります。
+    </p>
+
+
+    <a href="images/lbAccessStatus.jpg">
+     <img src="images/lbAccessStatus.jpg" alt="クリックすると拡大します" width="90%">
+    </a>
+
+    <p>このサーブレットをあなたのWebアプリケーションに追加するには、<em>WEB-INF/web.xml</em>に次の設定を追加すればよいでしょう。</p>
+
+    <pre class="prettyprint source">  &lt;servlet&gt;
+    &lt;servlet-name&gt;AccessViewStatusMessages&lt;/servlet-name&gt;
+    &lt;servlet-class&gt;ch.qos.logback.access.ViewStatusMessagesServlet&lt;/servlet-class&gt;
+  &lt;/servlet&gt;
+
+  &lt;servlet-mapping&gt;
+    &lt;servlet-name&gt;AccessViewStatusMessages&lt;/servlet-name&gt;
+    &lt;url-pattern&gt;/lbAccessStatus&lt;/url-pattern&gt;
+  &lt;/servlet-mapping&gt;</pre>
+   
+    <p>そうすると、<code>http://host/yourWebapp/lbAccessStatus</code>というURLで<code>ViewStatusMessagesServlet</code>にアクセスできるようになります。
+    </p>
+    
+    
+		<h1><a name="jetty" href="#jetty">Jettyでlogback-accessを使う</a></h1>
+
+		<p>Jettyでlogback-accessを使うには、ダウンロードしたlogbackの配布物を展開して、<em>logback-core-${project.version}.jar</em>と<em>logback-access-${project.version}.jar</em>を$JETTY_HOME/libディレクトリに配置します。$JETTY_HOMEは、Jettyをインストールしたディレクトリのことです。logback-access 0.9.31以降のバージョンでは、Jetty 7.x と 8.x に対応しています。logback-access 0.9.30 以前のバージョンでは、Jetty 6.x に対応しています。
+		</p>
+
+		<h3><code>org.eclipse.jetty.server.RequestLog</code>インターフェイスのlogback実装</h3>
+
+		<p><code><a href="xref/ch/qos/logback/access/jetty/RequestLogImpl.html">ch.qos.logback.access.jetty.RequestLogImpl</a></code>クラスは、Jettyの<code><a href="http://download.eclipse.org/jetty/stable-7/apidocs/org/eclipse/jetty/server/RequestLog.html">RequestLog</a></code>インターフェイス実装しています。Jettyは、アクセスログを管理する仕事をこのインターフェイスの実装に委譲します。
+		</p>
+
+		<p>logbackにおけるログの出力先の「アペンダー」は、<code>ch.qos.logback.access.jetty.RequestLogImpl</code>のインスタンスに直接割り当てられるようになります。
+		</p>
+
+	
+		<p>Jettyがlogback-accessの<code>RequestLogImpl</code>を使うようにするには、Jettyの設定ファイル<em>$JETTY_HOME/etc/jetty.xml</em>に次の設定を追加してください。</p>
+		<pre class="prettyprint source">&lt;Ref id="RequestLogHandler"&gt;
+  &lt;Set name="requestLog"&gt;
+    &lt;New id="requestLogImpl" class="ch.qos.logback.access.jetty.RequestLogImpl"&gt;
+    &lt;/New&gt;
+  &lt;/Set&gt;
+&lt;/Ref&gt;</pre>
+
+    <p>上記の設定で「RequestLogHandler」を参照していることに気をつけてください。jetty.xmlを確認して、<code>RequestLogHandler</code>が無かったら追加してください。次のような設定をすればちゃんとつながります。</p>
+
+    <pre class="prettyprint source">&lt;Set name="handler"&gt;
+  &lt;New id="Handlers" class="org.eclipse.jetty.server.handler.HandlerCollection"&gt;
+    &lt;Set name="handlers"&gt;
+      &lt;Array type="org.eclipse.jetty.server.Handler"&gt;        
+        &lt;Item&gt;
+          &lt;New id="Contexts" 
+               class="org.eclipse.jetty.server.handler.ContextHandlerCollection"/&gt;
+        &lt;/Item&gt;
+        &lt;Item&gt;
+          &lt;New id="DefaultHandler" 
+               class="org.eclipse.jetty.server.handler.DefaultHandler"/&gt;
+        &lt;/Item&gt;
+        <b>&lt;!-- add a RequestLogHandler --&gt;</b>
+        <b>&lt;Item&gt;</b>
+          <b>&lt;New id="RequestLogHandler"</b>
+               <b>class="org.eclipse.jetty.server.handler.RequestLogHandler"/&gt;</b>
+        <b>&lt;/Item&gt;</b>
+      &lt;/Array&gt;
+    &lt;/Set&gt;
+  &lt;/New&gt;
+&lt;/Set&gt;</pre>
+
+
+    <p><code>RequestLogImpl</code>は、（デフォルトでは）<em>jetty.xml</em>と同じ場所に配置された<em>logback-access.xml</em>を探します。この設定ファイルでは、logback-accessがロギング要求を送信する先のアペンダーなどを設定します。
+    </p>
+	
+		<p>パスを指定すれば、logbackの設定ファイルはどこにおいても構いません。<em>myaccess.xml</em>という名前の設定ファイルのパスを指定する場合、jetty.xmlには次のような設定を追加します。
+		</p>
+		
+    <pre class="prettyprint source">&lt;Ref id="RequestLogHandler"&gt;
+  &lt;Set name="requestLog"&gt;
+    &lt;New id="requestLogImpl" class="ch.qos.logback.access.jetty.RequestLogImpl"&gt;
+       &lt;Set name="fileName"&gt;path/to/myaccess.xml&lt;/Set&gt;
+    &lt;/New&gt;   
+  &lt;/Set&gt;
+&lt;/Ref&gt;</pre>
+
+   <p>jettyを組み込みモードで使う場合、logback-accessの設定ファイルはクラスパス上のリソースから探すようにすると便利でしょう。その場合、クラスパス上で探すファイル名をプロパティ<em>resource</em>で指定するようにします。
+   </p>
+
+   <pre class="prettyprint source">&lt;Ref id="RequestLogHandler"&gt;
+  &lt;Set name="requestLog"&gt;
+    &lt;New id="requestLogImpl" class="ch.qos.logback.access.jetty.RequestLogImpl"&gt;
+       &lt;Set name="<span class="bold">resource</span>"&gt;as/classpath/resource/myaccess.xml&lt;/Set&gt;
+    &lt;/New&gt;   
+  &lt;/Set&gt;
+&lt;/Ref&gt;</pre>
+
+  <h1><a name="configuration" href="#configuration">logback-accessの設定</a></h1>
+	
+	
+  <p><em>logback-access.xml</em>はlogback-classicの設定ファイルとほとんど同じですが、少しだけ違うところがあります。アペンダーとレイアウトの設定は全く同じです。しかし、logback-accessモジュールにはロガーが無いので、logge要素を含めることは出来ません。
+	</p>
+
+
+    <h3>例1：基本的なlogback-accessの設定</h3>
+		<p>ちゃんと機能する最小限の<em>logback-access.xml</em>を見てみましょう。</p>
+    <pre class="prettyprint source">&lt;configuration&gt;
+  &lt;!-- always a good activate OnConsoleStatusListener --&gt;
+  &lt;statusListener class="ch.qos.logback.core.status.OnConsoleStatusListener" /&gt;  
+
+  &lt;appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender"&gt;
+    &lt;encoder&gt;
+      &lt;pattern&gt;%h %l %u %user %date "%r" %s %b&lt;/pattern&gt;
+    &lt;/encoder&gt;
+  &lt;/appender&gt;
+
+  &lt;appender-ref ref="STDOUT" /&gt;
+&lt;/configuration&gt;</pre>
+		<p>ログをコンソールに出力する<code>ConsoleAppender</code>が宣言されています。<code>ConsoleAppender</code>にはログ出力を書式化する<code>Encoder</code>が含まれています。ちなみに、書式パターン文字列として指定されている "%h %l %u %user %date "%r" %s %b" は共通ログ書式（CLF）です。これは、ログ解析ツールの<a href="http://www.analog.cx/">Analog</a>や<a href="http://awstats.sourceforge.net/">AWStats</a>で扱うことができる書式です。
+		</p>
+
+    <p>書式パターン文字列に "common" や "clf" と指定すると、上記の書式パターン文字列を指定したものとして解釈されます。つまり、次の書式パターン文字列はどれも同じ意味になるのです。</p>
+    
+    <pre class="prettyprint source">&lt;pattern&gt;%h %l %u %user %date "%r" %s %b&lt;/pattern&gt;
+&lt;pattern&gt;common&lt;/pattern&gt;
+&lt;pattern&gt;clf&lt;/pattern&gt;</pre>
+
+  <p>いわゆる "combined" という書式も広く扱われています。こちらは "%h %l %u [%t] "%r" %s %b "%i{Referer}" "%i{User-Agent}"" という書式パターン文字列になります。やはり "combined" という文字列も省略形として使用することが出来ます。次のような設定は、</p>
+
+  <pre class="prettyprint source">&lt;encoder&gt;
+  &lt;pattern&gt;%h %l %u [%t] "%r" %s %b "%i{Referer}" "%i{User-Agent}"&lt;/pattern&gt;
+&lt;/encoder&gt;</pre>
+
+  <p>次の設定と同じ意味になります。</p>
+
+  <pre class="prettyprint source">&lt;encoder&gt;
+  &lt;pattern&gt;combined&lt;/pattern&gt;
+&lt;/encoder&gt;</pre>
+
+
+    <h3>例2：RollingFileAppender</h3>
+
+		<p>次の設定は、<code>RollingFileAppender</code>によって毎日出力先のログファイルを切り替えるものです。<span class="option">fileNamePattern要素</span>でファイル名の拡張子として<em>zip</em>を指定しているので、ログファイルを切り替えるだけでなく、アーカイブされたファイルは自動的に圧縮されるようになります。</p>
+
+
+ <pre class="prettyprint source">&lt;configuration&gt;
+  &lt;!-- always a good activate OnConsoleStatusListener --&gt;
+  &lt;statusListener class="ch.qos.logback.core.status.OnConsoleStatusListener" /&gt;  
+
+  &lt;appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender"&gt;
+    &lt;file&gt;access.log&lt;/file&gt;
+    &lt;rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy"&gt;
+      &lt;fileNamePattern&gt;access.%d{yyyy-MM-dd}.log.zip&lt;/fileNamePattern&gt;
+    &lt;/rollingPolicy&gt;
+
+    &lt;encoder&gt;
+      &lt;pattern&gt;combined&lt;/pattern&gt;
+    &lt;/encoder&gt;
+  &lt;/appender&gt;
+ 
+  &lt;appender-ref ref="FILE" /&gt;
+&lt;/configuration&gt;</pre>
+		
+    <p>これらの例を見れば、logback-accessでどんなことができるのか想像できるでしょう。原則として、logback-classicで利用できる機能のほとんどは、logback-accessでも利用することができます。
+		</p>
+
+    <h3>PatternLayout</h3>
+
+		<p>logback-accessには、HTTPアクセスログに特化した<code><a href="xref/ch/qos/logback/access/PatternLayout.html">PatternLayout</a></code>が含まれています。<code>PatternLayout</code>の詳しい使い方については、logbackマニュアルの<a href="manual/layouts_ja.html#AccessPatternLayout">対応する章</a>を参照してください。
+		</p>
+		
+		<h2>JMXコンポーネント</h2>
+		
+		<p>logback-accessは、自身のコンポーネントの情報を公開するため、JMXサーバーと統合することができます。
+		</p>
+		
+		<p><code>RequestLogImpl</code>と<code>LogbackValve</code>のどちらも、JMXを介して情報の公開と更新ができるようになっています。後述する専用のフィルターを使えば、アクセスログに関する統計情報を公開することもできます。
+		</p>
+		
+		
+		<h3>TomcatでJMXを使えるようにするための設定</h3>
+		
+		<p>TomcatでJMXを使えるようにするには、<em>$TOMCAT_HOME/bin/catalina.sh</em>（MS Windowsの場合はcatalina.bat）の適切な場所に次の行を追加してください。</p>
+		
+<div class="source"><pre>CATALINA_OPTS="-Dcom.sun.management.jmxremote"
+CATALINA_OPTS="$CATALINA_OPTS -Dcom.sun.management.jmxremote.ssl=false"
+CATALINA_OPTS="$CATALINA_OPTS -Dcom.sun.management.jmxremote.authenticate=false"</pre></div>
+
+		<p>Tomcatを起動すると、jconsoleからTomcatの公開しているMBeanにアクセスできるようになります。</p>
+    <pre class="source">jconsole</pre>
+
+		<p>MX4Jの提供するWebインターフェイスでコンポーネントにアクセスできるようにする手順を簡単に説明します。<a href="http://mx4j.sourceforge.net/">MX4Jをダウンロード</a>したら、<em>$TOMCAT_HOME/bin</em>に<em>mx4j-impl.jar</em>を、<em>$TOMCAT_HOME/common//lib</em>に<em>mx4j-tools.jar</em>を配置します。そうしたら、<em>$TOMCAT_HOME/bin/catalina.sh</em>（MS Windowsの場合はcatalina.bat）の適切な場所に次の行を追加します。</p>
+
+<div class="source"><pre># at the beginning of the file
+CATALINA_OPTS="-Dcom.sun.management.jmxremote"
+CATALINA_OPTS="$CATALINA_OPTS -Djavax.management.builder.initial=mx4j.server.MX4JMBeanServerBuilder"
+
+# in the "Add on extra jar files to CLASSPATH" section
+CLASSPATH="$CLASSPATH":"$CATALINA_HOME"/bin/mx4j-impl.jar</pre></div>
+
+		<p>最後に、<em>$TOMCAT_HOME/conf/server.xml</em>へ新しい<code>Connector</code>要素を追加します。</p>
+		
+    <pre class="prettyprint source">&lt;Connector port="8050" 
+  handler.list="mx"
+  mx.enabled="true" 
+  mx.httpHost="localhost" 
+  mx.httpPort="8082" 
+  protocol="AJP/1.3" /&gt;</pre>
+  
+  	<p>Tomcatを起動して、ブラウザで次のURLにアクセスすれば、JMXコンポーネントを参照することができます。</p>
+
+    <pre class="source">http://localhost:8082/</pre>
+
+		<h3>JettyでJMXを使えるようにするための設定</h3>
+		
+		<p>JettyでJMXコンポーネントを公開できるようにするには、<em>$JETTY_HOME/etc/jetty.xml</em>を修正しなければなりません。次のような設定を追加します。</p>
+
+    <pre class="prettyprint source">&lt;Call id="MBeanServer" class="java.lang.management.ManagementFactory" name="getPlatformMBeanServer"/&gt;
+&lt;!-- initialize the Jetty MBean container --&gt;
+&lt;Get id="Container" name="container"&gt;
+  &lt;Call name="addEventListener"&gt;
+    &lt;Arg&gt;
+      &lt;New class="org.mortbay.management.MBeanContainer"&gt;
+        &lt;Arg&gt;&lt;Ref id="MBeanServer"/&gt;&lt;/Arg&gt;
+        &lt;Set name="managementPort"&gt;8082&lt;/Set&gt;
+        &lt;Call name="start" /&gt;
+      &lt;/New&gt;
+    &lt;/Arg&gt;
+  &lt;/Call&gt;
+&lt;/Get&gt;</pre>
+
+		<p>Jettyを起動して、ブラウザで次のURLにアクセスすれば、JMXコンポーネントを参照することができます。</p>
+    <pre class="prettyprint source">http://localhost:8082/</pre>
+
+		<p>logback-accessの<code>RequestLogImpl</code>が見えるようになっているはずですし、<code>start()</code>メソッドも<code>stop()</code>も見えるようになっているはずです。
+		</p>
+
+
+    <h2><a name="teeFilter" href="#teeFilter"><code>TeeFilter</code> <span class="small">（サーブレットフィルター）</span></a></h2>
+
+    <p>Webアプリケーションのバグを診断する上で、クライアントから送信されたリクエストだけでなく、サーバーのレスポンスも見ることができると便利です。<code>TeeFilter</code>はまさにそのために用意されたものです。とはいえ、<code>TeeFilter</code>はただの<a href="http://download.oracle.com/javaee/5/api/javax/servlet/Filter.html">サーブレットフィルター</a>です。他のサーブレットフィルターと同様に、Webアプリケーションの<em>web.xml</em>で宣言しなければ有効になりません。</p>
+
+    <pre class="prettyprint source">&lt;filter&gt;
+  &lt;filter-name&gt;TeeFilter&lt;/filter-name&gt;
+  &lt;filter-class&gt;ch.qos.logback.access.servlet.TeeFilter&lt;/filter-class&gt;
+&lt;/filter&gt;
+
+&lt;filter-mapping&gt;
+  &lt;filter-name&gt;TeeFilter&lt;/filter-name&gt;
+  &lt;url-pattern&gt;/*&lt;/url-pattern&gt;
+&lt;/filter-mapping&gt;</pre>
+
+  <p>私たちは<code>TeeFilter</code>について出来る限りのことをテストしました。ですが、リクエストの入力ストリームとレスポンスの出力ストリームを複製してしまうので、あなたのアプリケーションにとって邪魔になるかもしれません。また、大量の入出力があると、目に見えるほどの遅延が生じるかもしれません。既知の不具合については全て対応したのですが、それとは無関係に<code>TeeFilter</code>がアプリケーションの正しい振る舞いを壊してしまうことが過去にありました。ですから、何かおかしいなと思ったら迷うこと無く<code>TeeFilter</code>を無効にしてください。
+  </p>
+
+  <p><code>TeeFilter</code>を有効化していると、<a href="manual/layouts_ja.html#AccessPatternLayout">PatternLayout</a>は<code>fullRequest</code>あるいは<code>fullResponse</code>という変換指示子について、それぞれ完全なリクエスト文字列とレスポンス文字列を出力するようになります。
+  </p>
+
+  <p>完全なリクエスト文字列とレスポンス文字列をコンソールに出力する設定は次のようになります。
+  </p>
+
+  <pre class="prettyprint source">&lt;configuration&gt;
+  &lt;appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender"&gt;
+    &lt;encoder&gt;      
+      &lt;pattern&gt;%fullRequest%n%n%fullResponse&lt;/pattern&gt;
+    &lt;/encoder&gt;
+  &lt;/appender&gt;
+	
+  &lt;appender-ref ref="STDOUT" /&gt;
+&lt;/configuration&gt;</pre>
+
+  <p>以下は、<a href="demo.html">logback-demo</a>アプリケーションによる出力例です。</p>
+
+  <p class="source"><b>GET /logback-demo/index.jsp HTTP/1.1</b>
+Host: localhost:8080
+User-Agent: Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8) Gecko/20070312 Firefox/1.5.0
+Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8
+Accept-Language: en-us,en;q=0.5
+Accept-Encoding: gzip,deflate
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+Keep-Alive: 300
+Connection: keep-alive
+Referer: http://localhost:8080/logback-demo/login.jsp
+Cookie: JSESSIONID=15c7tqi9ehlwk;  OID324nkzcmr=null; OID32862zgoa=null; 
+
+
+
+<b>HTTP/1.1 200 OK</b>
+Content-Type: text/html; charset=iso-8859-1
+Expires: Thu, 01 Jan 1970 00:00:00 GMT
+Set-Cookie: JSESSIONID=bgebt99ce9om;path=/logback-demo
+
+
+&lt;html&gt;
+&lt;head&gt;
+        &lt;LINK REL=StyleSheet HREF="css/pk.css" /&gt;
+&lt;/head&gt;
+&lt;body&gt;
+
+&lt;h2&gt;Logback demo center&lt;/h2&gt;
+
+[snip, so that text is reasonably sized]</p>
+
+  <p> </p>
+
+
+  <p>前述のとおり、バグ探しには極めて便利なのですが、<code>TeeFilter</code>が別の問題を引き起こすことがあります。したがって、本番環境で<code>TreeFilter</code>を有効にすることは決してお勧めできません。テスト環境と本番環境で別の設定ファイルを用意しなくても済むように、<code>TeeFilter</code>には<code>includes</code>と<code>excludes</code>というパラメータが用意されています。
+  現在のホストがincludesに含まれていて、excludesに含まれていなければ、<code>TeeFilter</code>は有効になります。特別ルールとして、includesが空の場合全てのホストが含まれているとみなされます。
+  </p>
+
+  <p>たとえば、"orion" と "gemini" というホストで<code>TeeFilter</code>を有効にして、他のホストでは有効にしない場合は次のように設定します。</p>
+
+  <pre class="prettyprint source">&lt;filter&gt;
+  &lt;filter-name&gt;TeeFilter&lt;/filter-name&gt;
+  &lt;filter-class&gt;ch.qos.logback.access.servlet.TeeFilter&lt;/filter-class&gt;
+  &lt;init-param&gt;
+    <b>&lt;param-name&gt;includes&lt;/param-name&gt;</b>
+    <b>&lt;param-value&gt;orion, gemini&lt;/param-value&gt;</b>
+  &lt;/init-param&gt;
+&lt;/filter&gt;  </pre>
+
+  <p>一方、"orion" と "gemini" というホストでは<code>TeeFilter</code>を有効にしないで、他のホストでは有効にする場合は次のように設定します。</p>
+
+  <pre class="prettyprint source">&lt;filter&gt;
+  &lt;filter-name&gt;TeeFilter&lt;/filter-name&gt;
+  &lt;filter-class&gt;ch.qos.logback.access.servlet.TeeFilter&lt;/filter-class&gt;
+  &lt;init-param&gt;
+    <b>&lt;param-name&gt;excludes&lt;/param-name&gt;</b>
+    <b>&lt;param-value&gt;orion, gemini&lt;/param-value&gt;</b>
+  &lt;/init-param&gt;
+&lt;/filter&gt;  </pre>
+    
+
+  <script src="templates/footer.js" type="text/javascript"></script>
+</div>
+
+</body>
+</html>
