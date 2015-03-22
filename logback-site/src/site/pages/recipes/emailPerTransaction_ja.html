@@ -1,0 +1,329 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" 
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8"></meta>
+    <title>指定したトランザクションだけを含んだログを電子メールで送信する</title>
+    <link rel="stylesheet" type="text/css" href="../css/common.css"></link>
+    <link rel="stylesheet" type="text/css" href="../css/screen.css" media="screen"></link>
+    <link rel="stylesheet" type="text/css" href="../css/_print.css" media="print"></link>
+    <link rel="stylesheet" type="text/css" href="../css/prettify.css" media="screen"></link>
+
+  </head>
+  <body dir="ltr" onload="prettyPrint()">
+    <script type="text/javascript">prefix='../';</script>
+    <script type="text/javascript" src="../js/prettify.js"></script>
+    <script src="../templates/header.js" type="text/javascript"></script>
+    <div id="left">
+      <noscript>このメニューを表示するにはJavaScriptをONにしてください</noscript>
+      <script src="../templates/left.js" type="text/javascript"></script>
+    </div>
+    <div id="content">
+      
+      <h2>指定したトランザクションだけを含んだログを電子メールで送信する</h2>
+      
+      <p>デイブとキャロルは、Fooware.comという会社でQAエンジニアとして働いていました。ご想像のとおり、Fooware.com社はFooを販売しています。Fooって……Fooware.comでは、<em>Buscrit</em>というバックエンドの基幹システムが動いています。Buscritは、たくさんのアプリケーションから、様々な種類の重要なトランザクションを開始するために呼び出されています。
+      </p>
+
+      <p>私たちは、キャロルがBuscritの生成したログ情報にアクセスできるようにしたいと思います。それもできるだけやりやすいように、です。前提として、キャロルはBuscritを実行しているサーバー上で直接ログファイルにアクセスできるものとします。ですが、ログファイルにアクセスできるという前提はあまり現実的ではありません。なぜなら次のような状況を考慮しなければならないからです。</p>
+
+      <ol>
+        <li>Buscritは複数のサーバーで実行している上に、特定のトランザクションがどのサーバーで開始したのか識別するのは難しい</li>
+        <li>キャロルはBuscritを実行しているサーバーにアクセスできない（したくない）</li>
+        <li>Buscritはデイブとキャロル以外にも複数のテスターが同時にテストしているので、ログファイルで一つのトランザクションを識別するのは難しい</li>
+      </ol>
+
+      <p>こういった状況を踏まえて、トランザクションが完了したらキャロルに電子メールを送信するようにlogbackを設定していきます。キャロルが指定したトランザクションを独立した形で含んだ電子メールを送信できるよう、設定ファイルを徐々に育てていきます。
+      </p>
+
+      <h3>トランザクションの終了時に電子メール送信をトリガする</h3>
+
+      <p>ログ情報を含めた電子メールを生成するには<code>SMTPAppender</code>を使います。<code>SMTPAppender</code>について詳しくは<a href="../manual/appenders.html#SMTPAppender">マニュアルの適切なセクション</a>を参照してください。
+      </p> 
+
+      <p><a href="demo.html">logback-demo</a>プロジェクトには、<a href="http://logback-demo.qos.ch/xref/ch/qos/logback/demo/prime/PrimeAction.html"><code>PrimeAction</code></a>というStrutsのアクションクラスがありｍさう。これは整数を素因数分解します。<code>PrimeAction</code>クラスは次のようになっています。</p>
+
+      <pre class="prettyprint source">package ch.qos.logback.demo.prime;
+
+import org.apache.struts.action.Action;
+...
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+public class PrimeAction extends Action {
+
+  Logger logger = LoggerFactory.getLogger(PrimeAction.class);
+  static Marker SMTP_TRIGGER = MarkerFactory.getMarker("SMTP_TRIGGER");
+
+  public ActionForward execute(ActionMapping actionMapping,
+                               ActionForm actionForm, HttpServletRequest request,
+                               HttpServletResponse response) throws Exception {
+
+    PrimeForm form = (PrimeForm) actionForm;
+
+    Long number = form.getNumber();
+    try {
+      NumberCruncher nc = new NumberCruncherImpl();
+      Long start = System.currentTimeMillis();
+      Long[] result = nc.factor(number);
+      Long duration = System.currentTimeMillis() - start;
+      logger.info("Results computed in {} ms", duration);
+
+      ...
+    } finally {
+      <b>logger.info(SMTP_TRIGGER, "Prime computation ended");</b>
+    }
+  }
+} </pre>
+
+      <p>実際のアプリケーションだと、トランザクションにはデータベースやメッセージキューなどの外部システムも巻き込まれるでしょう。ここでは、素因数分解のリクエストそれぞれを<em>トランザクション</em>として考えることにします。トランザクションの完了時、すなわち、素因数分解のリクエストの完了時に、マーカーSMTP_TRIGGER、メッセージ"Prime computation ended"でロガーを呼び出しています。このロギング要求を利用して、電子メール送信をトリガーするために必要な、それぞれのトランザクションの完了を識別することができます。
+     </p>
+
+     <p>この設定ファイルでは<code>JainoEventEvaluator</code>を使っています。マーカーSMTP_TRIGGERの設定されたロギングイベントによって電子メール送信をトリガーするためです。</p> 
+
+    <pre class="prettyprint
+     source">&lt;configuration scan="true" scanPeriod="3 seconds"&gt;
+
+  &lt;!-- always a good idea to have an OnConsoleStatusListener --&gt;
+  &lt;statusListener class="ch.qos.logback.core.status.OnConsoleStatusListener" /&gt;
+
+  &lt;appender name="SMTP" class="ch.qos.logback.classic.net.SMTPAppender"&gt;
+    &lt;smtpHost&gt;NAME_OF_SMTP_HOST&lt;/smtpHost&gt;
+    &lt;to&gt;...&lt;/to&gt;                                         
+    &lt;from&gt;...&lt;/from&gt;
+    &lt;subject&gt;Prime - %mdc{number} by %mdc{userid} &lt;/subject&gt;
+    &lt;layout class="ch.qos.logback.classic.html.HTMLLayout"&gt;
+      &lt;pattern&gt;%date%level%logger{24}%msg&lt;/pattern&gt;
+    &lt;/layout&gt;
+    
+    <b>&lt;evaluator class="ch.qos.logback.classic.boolex.JaninoEventEvaluator"&gt;</b>
+      <b>&lt;expression&gt;</b>
+        <b>marker != null  &amp;&amp; marker.contains("SMTP_TRIGGER")</b>
+      <b>&lt;/expression&gt;</b>
+    <b>&lt;/evaluator&gt;</b>
+  &lt;/appender&gt;
+
+  &lt;root level="DEBUG"&gt;
+    &lt;appender-ref ref="SMTP" /&gt; 
+  &lt;/root&gt;
+
+&lt;/configuration&gt;</pre>
+
+      
+
+   <h3>トランザクションを区別する</h3>
+
+   <p>前の設定ファイルでは、マーカーSMTP_TRIGGERが設定されたロギングイベントが発生するたびに電子メール送信をトリガーしていました。電子メールの本文には別のトランザクションで生成されたロギングイベントも含まれてしまっていました。少し工夫すれば、別のトランザクションで生成されたロギングイベントは分離することができます。そうすれば、トランザクションの完了をトリガーとして送信される電子メールの本文には、トリガーとなったトランザクションのログだけが含まれるようになります。
+   </p>
+
+  <p>トランザクションを区別するには、なによりもトランザクションを識別できるようにしなければなりません。普通ならトランザクションの一意識別子をMDCに登録することになります。</p>
+
+  <pre class="prettyprint source">String transactionId = ...; // extract id from transaction 
+MDC.put("txId", transactionId); </pre>
+
+  <p><a href="http://logback-demo.qos.ch/xref/ch/qos/logback/demo/UserServletFilter.html"><code>UserServletFilter</code></a>を使っているなら、トランザクションのセッション識別子はキー"txid"でMDCに登録されます。</p>
+
+
+    <pre class="prettyprint source">public class UserServletFilter implements Filter {
+
+   public void doFilter(ServletRequest request, ServletResponse response,
+                       FilterChain chain) throws IOException, ServletException {
+
+    HttpServletRequest req = (HttpServletRequest) request;
+    HttpSession session = req.getSession();
+    MDC.put("txId", session.getId());
+    ...
+    try {
+      // invoke subsequent filters
+      chain.doFilter(request, response);
+    } finally {
+      // always clear the MDC at the end of the request
+      MDC.clear();
+    }
+  }
+}</pre>
+
+
+  <p>SMTPAppenderに適切な弁別器を設定すれば、弁別器の返す値に基づいた別々のバッファに到着するイベントを分散させることができます。それぞれのロギング要求のトリガーとなったトランザクションを識別する値はMDCにキー"txid"で登録されています。つまり、MDCベースの弁別器を使えばそれぞれのトランザクションが生成したログを分離することができるのです。
+  </p>
+
+  <pre class="prettyprint source">&lt;configuration scan="true" scanPeriod="3 seconds"&gt;
+
+  &lt;statusListener class="ch.qos.logback.core.status.OnConsoleStatusListener" /&gt;
+
+  &lt;appender name="SMTP" class="ch.qos.logback.classic.net.SMTPAppender"&gt;
+    &lt;smtpHost&gt;NAME_OF_SMTP_HOST&lt;/smtpHost&gt;
+    &lt;to&gt;...&lt;/to&gt;                                         
+    &lt;from&gt;...&lt;/from&gt;
+
+    &lt;smtpHost&gt;NAME_OF_SMTP_HOST&lt;/smtpHost&gt;
+    &lt;to&gt;name@some.smtp.host&lt;/to&gt;
+    &lt;from&gt;testing@...&lt;/from&gt;
+    &lt;subject&gt;Prime - %mdc{number} by %mdc{userid} &lt;/subject&gt;
+    &lt;layout class="ch.qos.logback.classic.html.HTMLLayout"&gt;
+       &lt;pattern&gt;%date%level%logger{24}%msg&lt;/pattern&gt;
+    &lt;/layout&gt;
+
+    &lt;evaluator class="ch.qos.logback.classic.boolex.JaninoEventEvaluator"&gt;
+      &lt;expression&gt;
+        marker != null &amp;&amp; marker.contains("SMTP_TRIGGER") 
+      &lt;/expression&gt;
+    &lt;/evaluator&gt;
+
+    <b>&lt;discriminator class="ch.qos.logback.classic.sift.MDCBasedDiscriminator"&gt;</b>
+      <b>&lt;key&gt;txId&lt;/key&gt;</b>
+      <b>&lt;defaultValue&gt;default&lt;/defaultValue&gt;</b>
+    <b>&lt;/discriminator&gt;</b>
+  &lt;/appender&gt;  
+
+  &lt;root level="DEBUG"&gt;
+    &lt;appender-ref ref="SMTP" /&gt; 
+  &lt;/root&gt;
+&lt;/configuration&gt; </pre>
+
+   <p>この設定ファイルで（<span class="option">smtpHost</span>と<span class="option">to</span>はあなたの環境で使用できる値を指定してください）logback-demoアプリケーションを実行してみましょう。そうしたら、<a href="http://localhost:8070/logback-demo/prime.jsp">Prime number</a>ページで123の素因数分解を試しましょう。私は次のようなメールを受信しました。</p>
+
+   <img src="images/factorEmail0.png" alt="selective email0">
+      
+   <p>このメールには123を素因数分解したときに生成されたログしか含まれていません。他の「トランザクション」で生成されたログは混ざっていません。
+   </p>
+
+  <h3>トランザクションの区別と、選択的トリガーおよび選択的宛先アドレス</h3>
+
+  <p>実際のシナリオでは、トランザクションを区別できるようになるだけでは不十分です。特定のユーザー（デイブやキャロルなどのQAエンジニア）にだけ電子メールの送信をトリガーしなければならないからです。また、キャロルの操作したトランザクションが生成した電子メールはキャロルのメールボックスに、デイブの操作したトランザクションが生成した電子メールはデイブのメールボックスに配信されて欲しいはずです。</p>
+
+  <p>選択的トリガーおよび選択的宛先アドレスのためには、二つの異なる問題があります。実際の状況にもよりますが、この二つの問題についていくつもの対処方法があります。ここでは、分かりやすくするため、Fooware.comのSMTPサーバが<a href="http://en.wikipedia.org/wiki/Email_address#Address_tags">アドレスタグ</a>を理解できることにします。アドレスタグを理解できるSMTPサーバは、username+xyz@fooware.com宛に送信されたメッセージを、+xyzを取り除いたusername@fooware.com宛に送信します。</p>
+
+  <p>さらに、ここではトランザクションの内容を見て、そのユーザーとユーザーの電子メールアドレスが抽出できることにします。データベースを検索するかもしれませんし、特に手段は問いません。抽出した電子メールアドレスは、キー"txEmail"でMDCに登録します。
+  </p>
+
+  <p>ロギングイベントにはSMTP_TRIGGERというマーカーが指定されていることを踏まえて、次の設定ファイルでは電子メールの宛先アドレスに "%mdc{txEmail}" という値を指定しています。また、"%mdc{txEmail}" の値に "+log" という文字列が含まれている場合だけ、という条件も指定されています。
+  </p>
+
+  <pre class="prettyprint source">&lt;configuration scan="true" scanPeriod="3 seconds"&gt;
+
+  &lt;statusListener class="ch.qos.logback.core.status.OnConsoleStatusListener" /&gt;
+
+  &lt;appender name="SMTP" class="ch.qos.logback.classic.net.SMTPAppender"&gt;
+    &lt;SMTPHost&gt;NAME_OF_SMTP_HOST&lt;/SMTPHost&gt;
+    <b>&lt;to&gt;%mdc{txEmail}&lt;/to&gt;</b>
+    &lt;from&gt;&lt;/from&gt;
+    &lt;subject&gt;Prime - %mdc{number}&lt;/subject&gt;
+
+    &lt;layout class="ch.qos.logback.classic.html.HTMLLayout"&gt;
+       &lt;pattern&gt;%date%level%logger{24}%msg&lt;/pattern&gt;
+    &lt;/layout&gt;
+
+    &lt;discriminator class="ch.qos.logback.classic.sift.MDCBasedDiscriminator"&gt;
+      &lt;key&gt;txId&lt;/key&gt;
+      &lt;defaultValue&gt;default&lt;/defaultValue&gt;
+    &lt;/discriminator&gt;
+
+    &lt;evaluator class="ch.qos.logback.classic.boolex.JaninoEventEvaluator"&gt;
+      &lt;expression&gt;
+        <b>(mdc != null &amp;amp;&amp;amp; mdc.get("txEmail") != null &amp;amp;&amp;amp; </b>
+            <b>((String) mdc.get("txEmail")).contains("+log") )</b>
+        &amp;amp;&amp;amp;
+        (marker != null  &amp;&amp; marker.contains("SMTP_TRIGGER") )
+      &lt;/expression&gt;
+    &lt;/evaluator&gt;
+  &lt;/appender&gt;
+
+  &lt;root level="DEBUG"&gt;
+    &lt;appender-ref ref="SMTP" /&gt; 
+  &lt;/root&gt;
+&lt;/configuration&gt;  </pre>
+
+     <p>あなたの利用できるSMTPサーバがアドレスタグを理解できない場合は、評価器の条件はそのまま、宛先アドレスは<a href="../manual/layouts.html#replace">%replace</a>変換指示子で部分的に置換します。設定を次のように変更します。</p>
+
+     <pre class="prettyprint source">&lt;appender name="SMTP" class="ch.qos.logback.classic.net.SMTPAppender"&gt;
+  &lt;to&gt;%replace(%mdc{txEmail}){'\+log', ''}&lt;/to&gt;
+  ...
+&lt;/appender&gt;</pre>
+
+     <p>これは、"%mdc{txEmail}" の値に含まれる "+log" を全て空文字列に置き換える、つまり、削除します。</p>
+
+     <h3>非常に忙しいシステムでのバッファ管理</h3>
+
+     <p>ここまでで、最初の問題に対して驚くほど柔軟なソリューションを提供することができました。実際に、Fooware.comのQAエンジニアなら誰でも、キャロルに一言お願いすれば、自分で操作したトランザクションの生成したログを手に入れられるようになりました。彼女が、Buscritから自動的にメールで送信できるようしたからです。メールアドレスのユーザーパートに"+log"というサフィックスを追加してBuscritに登録するだけでいいのです。
+     </p>
+
+     <p>デフォルトでは、<code>SMTPAppender</code>は<span class="option">maxNumberOfBuffers</span>（デフォルトでは64）で指定した数のバッファを使用します。そして、30分間未使用のバッファは自動的に破棄します。この方式はテスト環境のようにトランザクションがごく少数の環境ではちゃんと動作しました。しかし、本番環境は非常に多忙なせいで、バッファ管理の仕組み上、キャロルは<a href="../manual/appenders.html#bufferManagement">切り捨てられたバッファ</a>を受け取ることになりました。</p>
+
+     <p>この問題に対処するため、それぞれのトランザクションの処理が完了した後、適切なバッファを破棄するようにSMTPAppenderを調整しました。これは、ロギングイベントにFINALIZE_SESSIONというマーカーが設定されているときに機能します。トランザクションの終了を意味するマーカーFINALIZE_SESSIONを付けるようにした修正版の<code>PrimeAction</code>のソースコードは次のようになります。
+     </p>
+
+     <pre class="prettyprint source">package ch.qos.logback.demo.prime;
+
+<b>import static ch.qos.logback.classic.ClassicConstants.FINALIZE_SESSION_MARKER;</b>
+
+public class PrimeAction extends Action {
+
+  Logger logger = LoggerFactory.getLogger(PrimeAction.class);
+  static Marker SMTP_TRIGGER = MarkerFactory.getMarker("SMTP_TRIGGER");
+  static {
+     // markers can hold references to other markers
+     <b>SMTP_TRIGGER.add(FINALIZE_SESSION_MARKER);</b>
+  }
+
+  public ActionForward execute(ActionMapping actionMapping, ... ) throws Exception {
+
+    Long number = form.getNumber();
+    try {
+      ...
+    } finally {
+      <b>logger.info(SMTP_TRIGGER, "Prime computation ended");</b>
+      MDC.put("txId", null); // clear txId asap to avoid accidental rebirth
+    }
+  }
+} </pre>
+
+
+   <p>それぞれのトランザクションごとにバッファが破棄されるようになるので、<span class="option">maxNumberOfBuffers</span>の値は増やさなければなりません。設定ファイルを次のように変更します。
+   </p>
+
+   <pre class="prettyprint   source">&lt;configuration scan="true" scanPeriod="3 seconds"&gt;
+
+  &lt;statusListener class="ch.qos.logback.core.status.OnConsoleStatusListener" /&gt;
+
+  &lt;appender name="SMTP" class="ch.qos.logback.classic.net.SMTPAppender"&gt;
+    &lt;SMTPHost&gt;NAME_OF_SMTP_HOST&lt;/SMTPHost&gt;
+    &lt;to&gt;%mdc{txEmail}&lt;/to&gt;
+    &lt;from&gt;&lt;/from&gt;
+    &lt;subject&gt;Prime - %mdc{number}&lt;/subject&gt;
+
+    &lt;layout class="ch.qos.logback.classic.html.HTMLLayout"&gt;
+       &lt;pattern&gt;%date%level%logger{24}%msg&lt;/pattern&gt;
+    &lt;/layout&gt;
+
+    &lt;discriminator class="ch.qos.logback.classic.sift.MDCBasedDiscriminator"&gt;
+      &lt;key&gt;txId&lt;/key&gt;
+      &lt;defaultValue&gt;default&lt;/defaultValue&gt;
+    &lt;/discriminator&gt;
+
+    <b>&lt;cyclicBufferTracker class="ch.qos.logback.core.spi.CyclicBufferTracker"&gt;</b>
+      <b>&lt;maxNumberOfBuffers&gt;512&lt;/maxNumberOfBuffers&gt;</b>
+    <b>&lt;/cyclicBufferTracker&gt;</b>
+
+    &lt;evaluator class="ch.qos.logback.classic.boolex.JaninoEventEvaluator"&gt;
+      &lt;expression&gt;
+        (mdc != null &amp;amp;&amp;amp; mdc.get("txEmail") != null &amp;amp;&amp;amp;
+            ((String) mdc.get("txEmail")).contains("+log") )
+        &amp;amp;&amp;amp;
+        (marker != null  &amp;&amp; marker.contains("SMTP_TRIGGER") )
+      &lt;/expression&gt;
+    &lt;/evaluator&gt;
+
+  &lt;root level="DEBUG"&gt;
+    &lt;appender-ref ref="SMTP" /&gt; 
+  &lt;/root&gt;
+&lt;/configuration&gt;  </pre>
+
+    <p>この最後の変更によって、私たちはとうとうトランザクションごとに分離されたログを特定の宛先に電子メールとして送信できるようになりました。しかも、非常に忙しい本番環境で、です。目に見えてわかるほどにメモリも消費しません。
+    </p>
+
+     <script src="../templates/footer.js" type="text/javascript"></script>	
+    </div>
+  </body>
+</html>
