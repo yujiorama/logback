@@ -1,0 +1,266 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" 
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; UTF-8"></meta>
+    <title>よくある質問</title>
+    <link rel="stylesheet" type="text/css" href="css/common.css"></link>
+    <link rel="stylesheet" type="text/css" href="css/screen.css" media="screen"></link>
+    <link rel="stylesheet" type="text/css" href="css/_print.css" media="print"></link>
+
+  </head>
+  <body dir="ltr">
+    <script type="text/javascript">prefix='';</script>
+
+    <script src="templates/header.js" type="text/javascript"></script>
+    <div id="left">
+      <script src="templates/left.js" type="text/javascript"></script>
+    </div>
+    <div id="content">
+	
+    <h2>
+      <a name="top">よくある質問</a>
+    </h2>
+      
+    <h3>logbackプロジェクトについて</h3>
+
+    <ol>
+      <li><a href="#why_lgpl">logbackがApache Software Licenseではなく LGPL で配布されているのは何故ですか？</a> </li>
+
+      <li><a href="#dependecy">logbackが依存しているものはありますか？例えば、JDKのバージョンやサードパーティのライブラリなどはどうでしょうか？</a>
+      </li>
+    </ol>
+  
+                      
+    <h3>logback-classicモジュール</h3>
+    
+    
+    <ol type="1">    
+      <li>
+        <a href="#logger_serialization">logbackのロガーはシリアライズ可能ですか？</a>
+      </li>  
+      
+      <li>
+        <a href="#auto_config">設定が自動的に行われるとは具体的にどういうことですか？</a>
+      </li>  
+
+      <li>
+        <a href="#configFileLocation"><em>logback.groovy</em>や<em>logback.xml</em>や<em>logback-test.xml</em>などの設定ファイルをクラスパス上に配置するのは分かりましたけど、具体的にはどこに配置するべきでしょうか？</a> </li>
+
+      <li>
+        <a href="#sharedConfiguration">複数のJavaEEアプリケーションでお互いに影響を与えないようにしつつ同じ設定ファイルを共有することはできますか？
+        </a>
+      </li>
+
+      <li>
+        <a href="#overrideFromCL">コマンドラインでロギングを無効化するにはどうしたらいいですか？
+        </a>
+      </li>
+
+      <li>
+        <a href="#setup_jetty">Jettyがlogback-classicを使うようにするには何をすればいいですか？
+        </a>
+      </li>
+    </ol>
+    
+    <!-- =============================================================== -->
+    <!-- =============================================================== -->
+    <!-- =============================================================== -->
+    <!-- =============================================================== -->
+  
+        
+    <div class="section">
+      <h2>logbackプロジェクトについて
+</h2>
+      
+      <dl>
+        <dt>
+          <a name="why_lgpl" href="#why_lgpl">logbackがApache Software Licenseではなく LGPL で配布されているのは何故ですか？
+</a> </dt>
+        
+        <dd>
+          <p>logbackプロジェクトがLGPLとEPLのデュアルライセンスで配布されているのには主に二つの理由があります。一つは、log4jと関連性はあっても別のプロジェクトであるということを<em>強調</em>するためです。そのためにライセンスも別にしています。
+          </p>
+
+          <p>LGPLもEPLも一般的に受け入れられているライセンスです。ASLに対して、LGPLとEPLのどちらも派生物にも同じライセンスを適用しなければならないことになっています。派生物の正確な定義について議論するところがあるでしょうが、私たちには正当性と倫理性の相互関係が魅力的に思えたのです。これこそがLGPLとEPLのデュアルライセンスにすることにした二つ目の理由です。ASLはもう少し自由なアプローチを採っていますが、それが間違っているとは思いません。あくまでもバランスを考えてのことです。
+          </p>
+          
+        </dd>
+      </dl>
+
+      <hr>
+
+      <dl>
+        <dt><a name="dependecy" href="#dependecy">logbackが依存しているものはありますか？例えば、JDKのバージョンやサードパーティのライブラリなどはどうでしょうか？</a>
+        </dt>
+
+        <dd><p>この質問に対する回答は依存関係についての回答として<a href="dependencies.html">別のページ</a>にまとめてあります。</p>
+        </dd>
+      </dl>
+
+
+    </div>
+    
+    <div class="section">
+      <h2>logback-classic</h2>
+      <dl>
+        
+        <!-- ========================================================= -->
+        
+        <dt>
+          <a name="auto_config" href="#auto_config">設定が自動的に行われるとは具体的にどういうことですか？
+
+          </a>
+        </dt>
+        <dd>
+          <p>この質問に対する回答はlogbackマニュアルの<a href="manual/configuration.html#auto_configuration">該当するセクション</a>に記載されています。
+
+          </p>        
+          <hr>
+        </dd>
+        
+
+        <!-- ========================================================= -->
+
+        <dt>
+
+          <a name="configFileLocation" href="#configFileLocation"><em>logback.groovy</em>や<em>logback.xml</em>や<em>logback-test.xml</em>などの設定ファイルをクラスパス上に配置するのは分かりましたけど、具体的にはどこに配置するべきでしょうか？
+</a>
+        </dt>
+
+
+        <dd>
+          <p><em>logback.groovy</em>や<em>logback.xml</em>や<em>logback-test.xml</em>などの設定ファイルは、クラスパスに含まれているディレクトリならどこにでも<b>直接</b>配置することができます。たとえば、もしクラスパスが "c:/java/jdk15/lib/rt.jar;c:/mylibs/" なら、<em>logback.xml</em>を直接 "c:/mylibs/" に配置することができます。"c:/mylibs/other/" のようにサブディレクトリに置いても見つけられません。</p>
+        
+          <p>Webアプリケーションの場合は、<em>WEB-INF/classes</em> の下に<b>直接</b>設定ファイルを配置することができます。</p>
+
+          <hr>
+        
+        </dd>
+        
+        <!-- ========================================================= -->
+        
+        <dt>
+          <a name="logger_serialization" href="#logger_serialization">logbackのロガーはシリアライズ可能ですか？
+</a>
+        </dt>
+        <dd>
+          <p>はい。logbackのロガーはSLF4Jのロガー<em>そのもの</em>です。そして、SLF4Jのロガーはシリアライズ可能です。つまり、ロガーとして参照しているオブジェクトは、デシリアライズした後でもロギングできるのです。
+          </p>
+          
+          <p>デシリアライズしたロガーのインスタンスは、<code>org.slf4j.LoggerFactory</code>で生成することができます。つまり、logbackのロガーは、log4jやj.u.lのロガーとしてデシリアライズすることもできるのです。全てはデシリアライズする環境によって決まります。</p>
+
+          <hr>
+        </dd>
+        
+
+        <!-- ========================================================= -->
+   
+        <dt>
+          <a name="sharedConfiguration" href="#sharedConfiguration">複数のJavaEEアプリケーションでお互いに影響を与えないようにしつつ同じ設定ファイルを共有することはできますか？
+</a>
+        </dt>
+        <dd>
+          <p>可能です。<a href="manual/configuration.html#variableSubstitution">変数置換</a>を利用すれば、一つの設定ファイルでJavaEEアプリケーションごとに別々の宛先へログを出力することができます。実際の設定ファイルの例を見てください。</p>
+          
+          <p class="source">&lt;configuration&gt;
+  &lt;appender name="FILE" class="ch.qos.logback.core.FileAppender"&gt;
+    &lt;!-- "application-name" is a variable --&gt;
+    &lt;File&gt;<b>c:/logs/${application-name}.log</b>&lt;/File&gt;
+    &lt;layout class="ch.qos.logback.classic.PatternLayout"&gt;
+      &lt;Pattern&gt;%d %p %t %c - %m%n&lt;/Pattern&gt;
+    &lt;/layout&gt;
+  &lt;/appender&gt;
+  &lt;root level="debug"&gt;
+    &lt;appender-ref ref="FILE"/&gt;
+  &lt;/root&gt;
+&lt;/configuration&gt; </p>
+
+          <p>JavaEEアプリケーションそれぞれがlogback-classicをメモリ中に読み込むとすると、それぞれのアプリケーションで<code><em>application-name</em></code>という変数に別の値を指定すれば、ログは別々のファイルに出力されるようになります。この設定ファイルでlogbackを初期化するときに必要なのは、<code><em>application-name</em></code>変数に値を指定することだけです。プログラムでlogbackを設定する場合のサンプルコードは次のようになります。このコード片は、JavaEEアプリケーションの初期化時に呼び出すようにしなければなりません。
+          </p>
+
+          <p class="source">  LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
+  JoranConfigurator jc = new JoranConfigurator();
+  jc.setContext(context);
+  context.reset(); // override default configuration
+  // inject the name of the current application as "application-name"
+  // property of the LoggerContext
+  <b>context.putProperty("application-name", NAME_OF_CURRENT_APPLICATION);</b>
+  jc.doConfigure("/path/to/the/above/configuration/file.xml"); </p>
+
+          <hr>
+        </dd>
+        
+
+        <!-- ========================================================= -->
+
+        <dt>
+          <a name="overrideFromCL" href="#overrideFromCL">コマンドラインでロギングを無効化するにはどうしたらいいですか？
+          </a>
+        </dt>
+        <dd>
+          <p>logbackはコマンドラインからロギングを無効化することはできません。しかし、設定ファイルに細工すれば無効化することができます。ロガーのレベルをJavaのシステムプロパティで指定すればよいのです。たとえば次のような設定です。</p>
+
+          <p class="source">&lt;configuration&gt;
+  &lt;appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender"&gt;
+    &lt;layout class="ch.qos.logback.classic.PatternLayout"&gt;
+      &lt;Pattern&gt;%d [%thread] %level %logger - %m%n&lt;/Pattern&gt;
+    &lt;/layout&gt;
+  &lt;/appender&gt;
+  &lt;root level="<b>${root-level:-INFO}</b>"&gt;
+    &lt;appender-ref ref="CONSOLE"/&gt;
+  &lt;/root&gt;
+&lt;/configuration&gt;</p>
+
+
+          <p>この設定では<a href="manual/configuration.html#variableSubstitution">変数置換</a>と<a href="manual/configuration.html#defaultValuesForVariables">変数のデフォルト値</a>を応用しており、システムプロパティ<span class="variable">root-level</span>に<code>OFF</code>を指定するとロギングが無効になります。システムプロパティが指定されなかったら、デフォルト値の<code>INFO</code>が使われます。システムプロパティ<span class="variable">root-level</span>には任意のログレベルが指定できるので注意してください。<code>OFF</code>は指定できる値の一つでしかありません。単なる一例である。
+
+          </p>
+          <hr>
+        </dd>
+
+
+        <!-- ========================================================= -->
+        
+        <dt>
+          <a name="setup_jetty" href="#">Jettyがlogback-classicを使うようにするには何をすればいいですか？
+          </a>
+        </dt>
+        
+        <dd>
+          <p>Jettyは、内部のロギングにSLF4Jを使っています。
+          </p>
+          
+          <p>したがって、Jettyのクラスパス上にlogbackのjarファイルを配置しなければなりません。必要なファイルは<em>logback-core-${project.version}.jar</em>と<em>logback-classic-${project.version}.jar</em>の二つです。これらのファイルを<em>$JETTY_HOME/lib</em>ディレクトリに配置しなければなりません。
+          </p>
+
+          
+          <p>Jettyが内部的に使っているSLF4Jは古いので、新しいバージョンのjarファイル（<em>slf4j-api-${slf4j.version}.jar</em>）で置き換えることをおすすめします。このjarファイルは<a href="http://www.slf4j.org/download.html">SLF4J</a>のプロジェクトサイトからダウンロードすることができます。
+          </p>
+        
+          
+          <p>logback-classicを自動的に設定させるには、<em>logback.xml</em>を<em>$JETTY_HOME/resources</em>に配置してください。サンプルの設定ファイルは、logbackの配布物を展開して、<em>logback-examples/src/main/java/chapters/appenders/conf/</em>フォルダを見ればいくつか見つかります。
+          </p>
+
+          <hr>                    
+        </dd>
+        
+
+        
+        
+        <!-- end of definitions -->
+      </dl>
+      
+      
+    </div>
+
+  <script src="templates/footer.js" type="text/javascript"></script>
+  
+</div>
+  
+
+	
+
+</body>
+</html>
